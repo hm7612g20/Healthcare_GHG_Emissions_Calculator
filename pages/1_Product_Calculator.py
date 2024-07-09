@@ -536,6 +536,7 @@ with st.spinner('Loading data...'):
     check_data(product_emissions)
     current_prod = product_emissions['product'].to_list()
 
+
 #### INPUT OWN FACTORS AND INFO ####
 # Finds which years of Defra file have been added to files
 defra_years_in_file = []
@@ -576,10 +577,6 @@ with st.expander('Update Information'):
     new_decon_gas = st.number_input(f'Gas use (m3)', min_value = 0.0,
                                     step=0.0001, format='%0.4f')
 
-    #if (save_option and len(new_decon_name) > 0 and new_decon_elec > 0.0 and
-    #    new_decon_water > 0.0):
-    #        calc.add_new_decon_to_file(new_decon_name, new_decon_elec,
-    #                                   new_decon_water, new_decon_gas)
 
 #### ADD OWN FACTORS FILE ####
 if st.checkbox(f'Upload own emissions factors file'):
