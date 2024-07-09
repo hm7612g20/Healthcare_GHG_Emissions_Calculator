@@ -1,0 +1,3 @@
+"""
+Greenhouse Gas Emissions Calculator.
+"""

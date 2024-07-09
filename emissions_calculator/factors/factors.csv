@@ -1,0 +1,152 @@
+component,loc,year,unit,factor_kgCO2eq_unit,carbon_content
+cotton,row,2022,kg,11.612,0.46
+pvc,row,2022,kg,2.9432,0.3871
+pvc,rer,2022,kg,2.1709,0.3871
+viscose,row,2022,kg,3.2539,0.24053
+polyester,row,2022,kg,5.626,0.625
+paper,row,2022,kg,2.0128,0.28953
+paper,rer,2022,kg,1.3163,0.28953
+steel pipe production,row,2022,kg,5.3405,0.0008
+oxygen,rer,2022,2L/h,0.50258,0.0
+ceramic,row,2022,kg,0.80477,0.0
+ceramic,rer,2022,kg,0.42039,0.0
+steel,row,2022,kg,1.2027,0.0
+steel production,row,2022,kg,5.395,0.0
+steel production,rer,2022,kg,5.3191,0.0
+polycarbonate,row,2022,kg,6.8672,0.7559
+polycarbonate,rer,2022,kg,6.2,0.7559
+bread,row,2022,kg,0.73625,0.0
+bread,rer,2022,kg,0.73625,0.0
+jam,row,2022,kg,1.5,0.0
+jam,rer,2022,kg,1.5,0.0
+butter,row,2022,kg,8.5367,0.74714
+butter,rer,2022,kg,8.5367,0.74714
+hdpe,row,2022,kg,3.1564,0.85714
+hdpe,rer,2022,kg,2.4175,0.85714
+milk,row,2022,kg,1.4866,0.0
+milk,rer,2022,kg,1.4866,0.0
+heated water,row,2022,L,0.01769612561,0.0
+pulp,row,2022,kg,1.9349,0.494
+pulp,rer,2022,kg,0.87824,0.494
+ldpe,row,2022,kg,3.3467,0.85714
+ldpe,rer,2022,kg,2.4132,0.85714
+food,row,2022,kg,0.73625,0.0
+food,rer,2022,kg,0.73625,0.0
+water piped,rer,2022,L,0.000149,0.0
+silicone,row,2022,kg,3.7148,0.32432
+silicone,rer,2022,kg,3.1457,0.32432
+polypropylene,row,2022,kg,3.6791,0.85714
+polypropylene,rer,2022,kg,2.3657,0.85714
+glyceryn,row,2022,kg,2.3454,0.3913
+foam,row,2022,kg,7.2781,0.63383
+foam,rer,2022,kg,4.9558,0.63383
+parafin oil,row,2022,kg,0.72392,0.84706
+parafin oil,rer,2022,kg,0.67607,0.84706
+polyurethane,row,2022,kg,7.2781,0.63383
+polyurethane,rer,2022,kg,4.9558,0.63383
+ldpe film,row,2022,kg,3.3467,0.85714
+ldpe film,rer,2022,kg,2.4132,0.85714
+cardboard,row,2022,kg,1.9349,0.494
+cardboard,rer,2022,kg,0.87824,0.494
+nitrile butadiene,row,2022,kg,4.5773,0.85308
+nitrile butadiene,rer,2022,kg,4.5419,0.85308
+chlorhexidine 0.5%,row,2022,kg,3.3659,0.6
+chlorhexidine 0.5%,rer,2022,kg,2.3336,0.6
+isopropyl alcohol,row,2022,kg,3.3659,0.6
+isopropyl alcohol,rer,2022,kg,2.3336,0.6
+styrene ethylene butadiene styrene (sebs),row,2022,kg,2.7634,0.87298
+styrene ethylene butadiene styrene (sebs),rer,2022,kg,2.6981,0.87298
+li ion battery,row,2022,kg,8.753,0.22697
+aluminium,row,2022,kg,19.493,0.0
+glass fibre optics,row,2022,kg,72.92,0.0
+latex,row,2022,kg,2.7634,0.87298
+latex,rer,2022,kg,2.6981,0.87298
+glass,row,2022,kg,1.1041,0.0
+glass,rer,2022,kg,0.58561,0.0
+anionic surfacatant,row,2022,kg,5.2209,0.61826
+water heating,rer,2022,kg,0.0044800318,0.0
+enzymatic solution,row,2022,kg,13.348,0.0
+enzymatic solution,rer,2022,kg,10.313,0.0
+porcelain,row,2022,kg,1.9305,0.0
+water,rer,2022,kg,0.000655,0.0
+water,rer,2022,kg,0.000149,0.0
+foam soap,row,2022,kg,5.2209,0.61826
+etoh gel,row,2022,kg,2.3311,0.52174
+etoh gel,rer,2022,kg,1.5192,0.52174
+moisturiser,row,2022,kg,0.72392,0.84706
+moisturiser,rer,2022,kg,0.67607,0.84706
+betadine,row,2022,kg,5.877,0.0
+betadine,rer,2022,kg,4.9603,0.0
+particle board,row,2022,kg,0.091175,0.494
+particle board,rer,2022,kg,0.0679,0.494
+soda lime,row,2022,kg,1.2202,0.0
+soda lime,rer,2022,kg,1.1861,0.0
+weaving cotton,row,2022,kg,11.37,0.0
+injection moulding,row,2022,kg,1.5182,0.0
+injection moulding,rer,2022,kg,0.88665,0.0
+acrylic adhesive,row,2022,kg,1.4874,0.4
+acrylic adhesive,rer,2022,kg,1.043,0.4
+weaving polyester,row,2022,kg,0.58117,0.0
+tea,row,2022,kg,7.1153,0.49008
+blow moulding,row,2022,kg,1.5986,0.0
+blow moulding,rer,2022,kg,0.72583,0.0
+saline,row,2022,kg,0.23565,0.0
+electronics,row,2022,kg,1237.7,0.16746
+working with steel,row,2022,kg,2.9766,0.0
+working with steel,rer,2022,kg,2.3412,0.0
+glucose solution,row,2022,kg,1.6181,0.40002
+wood,row,2022,kg,0.074555,0.494
+wood,rer,2022,kg,0.052318,0.494
+polypropylene textile production,row,2022,kg,4.1544,0.0
+copper,row,2022,kg,6.4435,0.0
+formalin,row,2022,kg,3.0251,0.4
+formalin,rer,2022,kg,1.2228,0.4
+water treatment,rer,2022,kg,0.000272,0.0
+biscuit,row,2022,kg,1.4826,0.0
+rubber,row,2022,kg,3.417,0.87195
+rubber,rer,2022,kg,2.8806,0.87195
+melamine,row,2022,kg,7.2338,0.28571
+melamine,rer,2022,kg,4.5851,0.28571
+copper wire,row,2022,kg,0.70031,0.0
+tissue paper,row,2022,kg,2.0951,0.28953
+tissue paper,rer,2022,kg,1.2938,0.28953
+lignocaine,row,2022,kg,32.0,0.0
+paracetamol highint,row,2022,kg,7325.25601769782,0.0
+pregabalin highint,row,2022,kg,7325.25601769782,0.0
+codeine,row,2022,kg,1010.0,0.0
+omeprazole highint,row,2022,kg,7325.25601769782,0.0
+cyclizine highint,row,2022,kg,7325.25601769782,0.0
+dexamethasone highint,row,2022,kg,7325.25601769782,0.0
+gentamicin highint,row,2022,kg,7325.25601769782,0.0
+metoclopramide highint,row,2022,kg,7325.25601769782,0.0
+tramadol highint,row,2022,kg,7325.25601769782,0.0
+magnesium highint,row,2022,kg,7325.25601769782,0.0
+metaraminol highint,row,2022,kg,7325.25601769782,0.0
+hyoscine highint,row,2022,kg,7325.25601769782,0.0
+buscopan highint,row,2022,kg,7325.25601769782,0.0
+atracurium highint,row,2022,kg,7325.25601769782,0.0
+atropine highint,row,2022,kg,7325.25601769782,0.0
+alfentanil highint,row,2022,kg,7325.25601769782,0.0
+fentanyl,row,2022,kg,93.0,0.0
+madazolam,row,2022,kg,380.0,0.0
+oramorph,row,2022,kg,1010.0,0.0
+ondansetron,row,2022,kg,40.0,0.0
+propofol,row,2022,kg,25.0,0.0
+ketamine,row,2022,kg,150.0,0.0
+morphine,row,2022,kg,1010.0,0.0
+oxycodone,row,2022,kg,1010.0,0.0
+heparin highint,row,2022,kg,7325.25601769782,0.0
+adrenaline highint,row,2022,kg,7325.25601769782,0.0
+amiodarone highint,row,2022,kg,7325.25601769782,0.0
+calcium chloride highint,row,2022,kg,7325.25601769782,0.0
+mitomycin c highint,row,2022,kg,7325.25601769782,0.0
+ephedrine,row,2022,kg,80.0,0.0
+suxamethonium,row,2022,kg,13.0,0.0
+glycopyrrolate,row,2022,kg,75.0,0.0
+sevoflurane,row,2022,kg,130.0,0.24
+sevoflurane,rer,2022,kg,130.0,0.24
+rocuronium,row,2022,kg,130.0,0.0
+diamorphine,row,2022,kg,1010.0,0.0
+bupivacaine,row,2022,kg,32.0,0.0
+dalteparin,row,2022,kg,7325.25601769782,0.0
+neostigmine,row,2022,kg,23.0,0.0
