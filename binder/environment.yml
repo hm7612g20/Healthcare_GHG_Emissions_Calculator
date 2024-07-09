@@ -1,0 +1,26 @@
+name: ghg_emissions_calc
+channels:
+  - conda-forge
+dependencies:
+  - joblib=1.2.0
+  - jupyterlab=4.0.9
+  - jupyterlab-plotly-extension=1.0.0
+  - jupyterlab-spellchecker=0.8.4
+  - matplotlib=3.8.2
+  - numpy=1.26.2
+  - pandas=2.1.4
+  - pip=23.3.1
+  - python=3.10.13
+  - scipy=1.11.4
+  - seaborn=0.13.0
+  - geopandas==0.14.4
+  - plotly=5.15.0
+  - pip:
+    - openpyxl==3.1.2
+    - searoute==1.3.1
+    - geopy==2.4.1
+    - scikit-learn==1.3.2
+    - streamlit==1.34.0
+    - streamlit-bokeh-events==0.1.2
+    - fpdf==1.7.2
+    - kaleido==0.2.1
