@@ -15,9 +15,6 @@ from geopy.geocoders import Nominatim
 
 import streamlit as st
 
-from google.oauth2 import service_account
-from gspread_pandas import Spread, Client
-
 
 #### READ STORED DATA ####
 def get_filepath(filename):
@@ -26,320 +23,6 @@ def get_filepath(filename):
                                                filename)
     
     return filepath
-
-def read_gsheets(name):
-    '''Reads data in from Google Sheets.'''
-    scope = ['https://spreadsheets.google.com/feeds',
-             'https://www.googleapis.com/auth/drive']
-
-    try:
-        credentials = service_account.Credentials.from_service_account_info(
-            st.secrets['gcp_service_account'], scopes = scope)
-        client = Client(scope=scope, creds=credentials)
-        spread = Spread(name, client = client)
-        sh = client.open(name)
-    except (FileNotFoundError, KeyError, Error, MalformedError) as e:
-        sh = None
-        spread = None
-
-    return sh, spread
-
-@st.cache_data(show_spinner=False)
-def read_products_cloud():
-    '''Reads inventory of products into a pd.DataFrame.'''
-    sh, spread = read_gsheets('products')
-
-    if sh is not None:
-        worksheet = sh.worksheet('products')
-        products = pd.DataFrame(worksheet.get_all_records())
-    else:
-        st.error('No products file found.')
-        products = None
-
-    return products
-
-def read_products():
-    '''Reads inventory of products into a pd.DataFrame.'''
-    # Read in products data
-    products_filepath = get_filepath(f'inventory/products.csv')
-
-    # Checks that file exists in location
-    if os.path.isfile(products_filepath):
-        # Read in products data
-        products = pd.read_csv(products_filepath)
-    else:
-        st.error('No products file found.')
-        products = None
-
-    return products
-
-@st.cache_data(show_spinner=False)
-def read_emissions():
-    '''Reads inventory of products and their emissions into a pd.DataFrame.'''
-    sh, spread = read_gsheets('emissions')
-
-    if sh is not None:
-        worksheet = sh.worksheet('emissions')
-        emissions = pd.DataFrame(worksheet.get_all_records())
-    else:
-        st.error('No emissions file found.')
-        emissions = None
-
-    return emissions
-
-def read_emissions_local():
-    '''Reads inventory of products and their emissions into a pd.DataFrame.'''
-    # Emissions data filepath
-    emissions_filepath = get_filepath(f'inventory/emissions.csv')
-
-    # Checks that file exists in location
-    if os.path.isfile(emissions_filepath):
-        # Read in products data
-        emissions = pd.read_csv(emissions_filepath)
-    else:
-        st.error('No emissions file found.')
-        emissions = None
-
-    return emissions
-
-@st.cache_data(show_spinner=False)
-def read_factors():
-    '''
-    Reads factors file into a pd.DataFrame.
-
-    Parameters:
-    -----------
-    None.
-
-    Returns:
-    --------
-    factors: pd.DataFrame
-        Contains component name, year and location corresponding to carbon
-        factor in kg CO2e and carbon content.
-    '''
-    sh, spread = read_gsheets('factors')
-
-    if sh is not None:
-        worksheet = sh.worksheet('factors.csv')
-        factors = pd.DataFrame(worksheet.get_all_records())
-        # Sets multi-index and sorts
-        factors = factors.set_index(['component', 'loc', 'year'])
-        factors = factors.sort_index()
-    else:
-        st.error('No factors file found.')
-        factors = None
-
-    return factors
-
-def read_factors_local():
-    '''
-    Reads factors file into a pd.DataFrame.
-
-    Parameters:
-    -----------
-    None.
-
-    Returns:
-    --------
-    factors: pd.DataFrame
-        Contains component name, year and location corresponding to carbon
-        factor in kg CO2e and carbon content.
-    '''
-    # Factors data filepath
-    factors_filepath = get_filepath(f'factors/factors.csv')
-
-    # Checks that file exists in location
-    if os.path.isfile(factors_filepath):
-        # Read in factors data
-        factors = pd.read_csv(factors_filepath)
-        # Sets multi-index and sorts
-        factors = factors.set_index(['component', 'loc', 'year'])
-        factors = factors.sort_index()
-    else:
-        st.error('No factors file found.')
-        factors = None
-
-    return factors
-
-@st.cache_data(show_spinner=False)
-def read_additional_factors():
-    '''
-    Reads factors file for laundry, disposal, transport, electricity, water
-    and gas into a pd.DataFrame.
-
-    Parameters:
-    -----------
-    None.
-
-    Returns:
-    --------
-    additional_factors: pd.DataFrame
-        Contains name and year corresponding to carbon factor in kg CO2e.
-    '''
-    sh, spread = read_gsheets('additional_factors')
-
-    if sh is not None:
-        worksheet = sh.worksheet('additional_factors')
-        factors = pd.DataFrame(worksheet.get_all_records())
-        # Sets index and sorts additional factors
-        factors.set_index(['name', 'unit', 'year'], inplace=True)
-        factors = factors.sort_index()
-    else:
-        st.error('No additonal factors file found.')
-        factors = None
-
-    return factors
-
-def read_additional_factors_local():
-    '''
-    Reads factors file for laundry, disposal, transport, electricity, water
-    and gas into a pd.DataFrame.
-
-    Parameters:
-    -----------
-    None.
-
-    Returns:
-    --------
-    additional_factors: pd.DataFrame
-        Contains name and year corresponding to carbon factor in kg CO2e.
-    '''
-    # Additonal factors data filepath
-    factors_filepath = get_filepath(f'factors/additional_factors.csv')
-
-    # Checks that file exists in location
-    if os.path.isfile(factors_filepath):
-        # Read in additional factors data
-        factors = pd.read_csv(factors_filepath)
-        # Sets index and sorts additional factors
-        factors.set_index(['name', 'unit', 'year'], inplace=True)
-        factors = factors.sort_index()
-    else:
-        st.error('No additonal factors file found.')
-        factors = None
-
-    return factors
-
-def read_processes():
-    '''Reads list of processes in factors file.'''
-    # Processes filepath
-    filepath = get_filepath(f'data/processes.csv')
-
-    # Checks that file exists in location
-    if os.path.isfile(filepath):
-        # Read in processes data
-        processes = pd.read_csv(filepath)
-        # Creates list of processes
-        processes = processes['process'].to_list()
-    else:
-        st.error('No processes file found.')
-        processes = None
-
-    return processes
-
-def read_decon_units():
-    '''Reads information on decontamination units into a dictionary.'''
-    filepath = get_filepath(f'data/decon_units.csv')
-
-    if os.path.isfile(filepath):
-        with open(filepath, 'r') as f:
-            decon_units = {}
-            for ind, line in enumerate(f):
-                # Header is at index 0 so ignore
-                if ind > 0:
-                    l = line.rstrip('\n')
-                    d = l.split(',')
-                    d[2] = float(d[2])
-                    # Dictionary containing unit and value
-                    decon_units[d[0]] = d[2]
-    else:
-        st.error('No decontamination units file found.')
-        decon_units = None
-
-    return decon_units
-
-@st.cache_data(show_spinner=False)
-def read_travel_dist():
-    '''Reads list of land and sea travel distances into a DataFrame.'''
-    sh, spread = read_gsheets('land_travel_distance')
-    if sh is not None:
-        worksheet = sh.worksheet('land_travel_distance')
-        land_travel_dist = pd.DataFrame(worksheet.get_all_records())
-        # Make all names lower case
-        land_travel_dist['start_loc'] = land_travel_dist['start_loc'].str\
-                                        .lower()
-        land_travel_dist['end_loc'] = land_travel_dist['end_loc'].str\
-                                      .lower()
-        # Sets index as start and end location
-        land_travel_dist = land_travel_dist.set_index(['start_loc',
-                                                       'end_loc'])
-        land_travel_dist = land_travel_dist.sort_index()
-    else:
-        st.error('No land travel distance file found.')
-        land_travel_dist = None
-
-    sh, spread = read_gsheets('sea_travel_distance')
-    if sh is not None:
-        worksheet = sh.worksheet('sea_travel_distance')
-        sea_travel_dist = pd.DataFrame(worksheet.get_all_records())
-        # Makes all names lower case
-        sea_travel_dist['start_loc'] = sea_travel_dist['start_loc'].str\
-                                       .lower()
-        sea_travel_dist['end_loc'] = sea_travel_dist['end_loc'].str.lower()
-        # Sets index as start and end location
-        sea_travel_dist = sea_travel_dist.set_index(['start_loc',
-                                                     'end_loc'])
-        sea_travel_dist = sea_travel_dist.sort_index()
-    else:
-        st.error('No sea travel distance file found.')
-        sea_travel_dist = None
-
-    return land_travel_dist, sea_travel_dist
-
-def read_travel_dist_local():
-    '''Reads list of land and sea travel distances into a DataFrame.'''
-    # Land travel distances filepath
-    land_filepath = get_filepath(f'data/land_travel_distance.csv')
-
-    # Checks that file exists in location
-    if os.path.isfile(land_filepath):
-        # Reads in land travel distances
-        land_travel_dist = pd.read_csv(land_filepath)
-
-        # Make all names lower case
-        land_travel_dist['start_loc'] = land_travel_dist['start_loc'].str\
-                                        .lower()
-        land_travel_dist['end_loc'] = land_travel_dist['end_loc'].str\
-                                      .lower()
-        # Sets index as start and end location
-        land_travel_dist = land_travel_dist.set_index(['start_loc',
-                                                       'end_loc'])
-        land_travel_dist = land_travel_dist.sort_index()
-    else:
-        st.error('No land travel distance file found.')
-        land_travel_dist = None
-        
-    # Sea travel distances filepath
-    sea_filepath = get_filepath(f'data/sea_travel_distance.csv')
-
-    # Checks that file exists in location
-    if os.path.isfile(sea_filepath):
-        # Reads in sea travel distances
-        sea_travel_dist = pd.read_csv(sea_filepath)
-
-        # Makes all names lower case
-        sea_travel_dist['start_loc'] = sea_travel_dist['start_loc'].str\
-                                       .lower()
-        sea_travel_dist['end_loc'] = sea_travel_dist['end_loc'].str.lower()
-        # Sets index as start and end location
-        sea_travel_dist = sea_travel_dist.set_index(['start_loc',
-                                                     'end_loc'])
-        sea_travel_dist = sea_travel_dist.sort_index()
-    else:
-        st.error('No sea travel distance file found.')
-        sea_travel_dist = None
-
-    return land_travel_dist, sea_travel_dist
 
 @st.cache_data(show_spinner=False)
 def read_countries_continents():
@@ -362,60 +45,6 @@ def read_countries_continents():
         row = None
 
     return rer, row
-
-@st.cache_data(show_spinner=False)
-def read_cities():
-    '''Reads world cities and UK cities into a list.'''
-    filepath = get_filepath(f'data/world_cities.csv')
-
-    if os.path.isfile(filepath):
-        cities_df = pd.read_csv(filepath)
-        cities_list = []
-        uk_cities_list = []
-        for ind, row in cities_df.iterrows():
-            city = row['name']
-            ctry = row['country']
-            # Saves city as city (country)
-            city_name = f'{city} ({ctry})'
-            if city_name not in cities_list:
-                cities_list.append(city_name)
-            # Creates separate list for UK with not country
-            if ctry == 'United Kingdom':
-                if city not in uk_cities_list:
-                    uk_cities_list.append(city)
-        uk_cities_list = sorted(uk_cities_list)
-    else:
-        st.error('No cities file found.')
-        cities_list = None
-        uk_cities_list = None
-
-    return cities_list, uk_cities_list
-
-@st.cache_data(show_spinner=False)
-def read_ports():
-    '''Reads names of main ports into a list.'''
-    filepath = get_filepath(f'data/ports.csv')
-
-    if os.path.isfile(filepath):
-        ports_df = pd.read_csv(filepath)
-        uk_ports_list = []
-        ports_list = []
-        for ind, row in ports_df.iterrows():
-            name = row['name']
-            ctry = row['country']
-            if ctry == 'united kingdom':
-                uk_ports_list.append(name)
-            else:
-                if ctry is not np.nan:
-                    ports_list.append(f'{name} ({ctry})')
-                else:
-                    ports_list.append(name)
-    else:
-        st.error('No ports file found.')
-        ports_list = None
-        uk_ports_list = None
-
-    return ports_list, uk_ports_list
 
 
 #### USED FOR EXTRACTING CORRECT DATA ####
@@ -460,7 +89,7 @@ def find_closest_year(data, year, need_cc=False):
 
     # Extracts factor from the closest year found
     best = data.loc[(data.index.get_level_values('year') == closest_yr)]
-    
+
     if need_cc:
         val = float(best['carbon_content'].to_list()[0])
     else:
@@ -540,11 +169,11 @@ def extract_best_factor(factors, comp, loc, year, need_cc, searched_all):
                 if need_cc:
                     st.error(f'No carbon content available for '
                              f'**{comp.capitalize()}** in '
-                             f'{loc.capitalize()}.')
+                             f'{loc.capitalize()}. 0.0 will be used.')
                 else:
                     st.error(f'No factor available for '
                              f'**{comp.capitalize()}** in '
-                             f'{loc.capitalize()}.')
+                             f'{loc.capitalize()}. 0.0 will be used.')
 
     return fact, found
 
@@ -625,10 +254,10 @@ def manufacture_calc(products, factors, no_comp, dest_city):
         prod_em = [] # Stores per use emissions for each component
 
         for i in range(no_comp): # Loops through components of product
-            comp = row['component_' + str(i+1)] # Finds name of component
+            comp = str(row['component_' + str(i+1)]) # Finds name of component
             # Finds year and location of manufacture
             year = row['manu_year_' + str(i+1)]
-            manu_loc = row['manu_loc_' + str(i+1)]
+            manu_loc = str(row['manu_loc_' + str(i+1)])
     
             #found = False # Used to check if relevant information found
             if comp != '0':
@@ -861,52 +490,55 @@ def travel_calc(products, no_comp, additional_factors, dest_city,
 
             # Start at manufacture location
             manu_loc = str(row['manu_loc_' + str(i+1)])
-            dest_loc = dest_city + ' (united kingdom)'
+            dest_loc = str(dest_city) + ' (united kingdom)'
+            comp = str(row['component_' + str(i+1)]) # Finds name of component
 
-            # If process, then no travel needed
-            if manu_loc != '0' and manu_loc != dest_loc:
-                # Start of sea travel
-                debark_port = str(row['debark_port_' + str(i+1)])
-                # Start of travel in UK
-                depart_loc_uk = str(row['depart_loc_uk_' + str(i+1)])
+            if comp != '0':
+                # If process, then no travel needed
+                if manu_loc != '0' and manu_loc != dest_loc:
+                    # Start of sea travel
+                    debark_port = str(row['debark_port_' + str(i+1)])
+                    # Start of travel in UK
+                    depart_loc_uk = str(row['depart_loc_uk_' + str(i+1)])
+        
+                    mass = row['mass_kg_' + str(i+1)] # Mass of component
+                    no_uses = row['no_uses_' + str(i+1)] # Number of uses
+                    year = row['manu_year_' + str(i+1)] # Year of manufacture
     
-                comp = row['component_' + str(i+1)] # Finds name of component
-                mass = row['mass_kg_' + str(i+1)] # Mass of component
-                no_uses = row['no_uses_' + str(i+1)] # Number of uses
-                year = row['manu_year_' + str(i+1)] # Year of manufacture
+                    (land_travel_fact,
+                        sea_travel_fact) = read_travel_fact(
+                            additional_factors, year)
     
-                (land_travel_fact,
-                    sea_travel_fact) = read_travel_fact(additional_factors,
-                                                        year)
-
-                # Emissions from land travel to start port if required
-                if manu_loc != debark_port and debark_port != '0':
-                    ghg_em = calc_travel_emissions(land_travel_dist, manu_loc,
-                                                   debark_port, 0, no_uses,
-                                                   mass, land_travel_fact,
-                                                   prod_name)
-                    obj_travel_em += ghg_em
-    
-                # Emissions from sea travel between ports
-                if debark_port != depart_loc_uk and debark_port != '0' \
-                    and depart_loc_uk != '0':
-                        city2 = depart_loc_uk + ' (united kingdom)'
-                        ghg_em = calc_travel_emissions(sea_travel_dist,
-                                                       debark_port, city2,
-                                                       1, no_uses, mass,
-                                                       sea_travel_fact,
+                    # Emissions from land travel to start port if required
+                    if manu_loc != debark_port and debark_port != '0':
+                        ghg_em = calc_travel_emissions(land_travel_dist,
+                                                       manu_loc, debark_port,
+                                                       0, no_uses,
+                                                       mass, land_travel_fact,
                                                        prod_name)
                         obj_travel_em += ghg_em
-
-                # Emissions to make point if no sea travel
-                if debark_port == '0' and manu_loc != depart_loc_uk and \
-                    depart_loc_uk != '0':
-                    city2 = depart_loc_uk + ' (united kingdom)'
-                    ghg_em = calc_travel_emissions(land_travel_dist, manu_loc,
-                                                   city2, 0, no_uses, mass,
-                                                   land_travel_fact,
-                                                   prod_name)
-                    obj_travel_em += ghg_em
+        
+                    # Emissions from sea travel between ports
+                    if debark_port != depart_loc_uk and debark_port != '0' \
+                        and depart_loc_uk != '0':
+                            city2 = depart_loc_uk + ' (united kingdom)'
+                            ghg_em = calc_travel_emissions(sea_travel_dist,
+                                                           debark_port, city2,
+                                                           1, no_uses, mass,
+                                                           sea_travel_fact,
+                                                           prod_name)
+                            obj_travel_em += ghg_em
+    
+                    # Emissions to make point if no sea travel
+                    if debark_port == '0' and manu_loc != depart_loc_uk and \
+                        depart_loc_uk != '0':
+                        city2 = depart_loc_uk + ' (united kingdom)'
+                        ghg_em = calc_travel_emissions(land_travel_dist,
+                                                       manu_loc, city2, 0,
+                                                       no_uses, mass,
+                                                       land_travel_fact,
+                                                       prod_name)
+                        obj_travel_em += ghg_em
                 
             travel_em.append(obj_travel_em)
     
@@ -1223,10 +855,10 @@ def disposal_calc(products, factors, no_comp, additional_factors,
         bio = 0
     
         for i in range(no_comp): # Loops through components
-            comp = row['component_' + str(i+1)] # Finds name of component
+            comp = str(row['component_' + str(i+1)]) # Finds name of component
             # Finds year and location of production
             year = row['manu_year_' + str(i+1)]
-            manu_loc = row['manu_loc_' + str(i+1)]
+            manu_loc = str(row['manu_loc_' + str(i+1)])
 
             # If incinerated or not - 1 if it is or 0 if not
             incinerate = float(row['incinerate_' + str(i+1)])
@@ -1457,117 +1089,3 @@ def emissions_calculation(products, factors, no_comp, additional_factors,
     return (total_emissions, total_manu_emissions,
             total_travel_emissions, use_emissions,
             reprocess_emissions, net_waste_emissions)
-
-
-#### UPDATE DATABASE ####
-def update_emissions(products, total_manu_emissions, total_travel_emissions,
-                     use_emissions, reprocess_emissions, net_waste_emissions,
-                     total_emissions, own_file):
-    '''
-    Updates emissions file given new calculations and archives the old one.
-
-    Parameters:
-    -----------
-    products: pd.DataFrame
-        Inventory containing products - made up of components, mass, where
-        they are made and where they are transported to, reprocessing if
-        required and disposal information.
-    total_manu_emissions: list
-        Total manufacturing GHG emissions for each product in the inventory.
-    total_travel_emissions: list
-        Total travel GHG emissions for each product in the inventory.
-    use_emissions: list
-        Total GHG emissions during use for each product in the inventory.
-    reprocess_emissions: list
-        Total reprocessing GHG emissions for each product in the inventory.
-    net_waste_emissions: list
-        Net waste GHG emissions for each product in the inventory.
-    total_emissions: list
-        Sum of all GHG emissions for each stage of life to give total for each
-        product in the inventory.
-    own_file: bool
-        If it is a new file that should be added to end of other file.
-
-    Returns:
-    --------
-    None.
-    '''
-    # Creates new dataframe containing this information to be output to
-    # emissions csv file
-    product_emissions = products.copy()
-
-    product_emissions['manufacture_emissions'] = total_manu_emissions
-    product_emissions['transport_emissions'] = total_travel_emissions
-    product_emissions['use_emissions'] = use_emissions
-    product_emissions['reprocessing_emissions'] = reprocess_emissions
-    product_emissions['disposal_emissions'] = net_waste_emissions
-    product_emissions['total_emissions'] = total_emissions
-
-    now = datetime.now() # Current date and time
-    date_time = now.strftime("%Y-%m-%d_%H-%M-%S") # Formatted string
-
-    filepath = get_filepath('inventory/emissions.csv')
-
-    # Archives current emissions file using date and time
-    if os.path.isfile(filepath):
-        # Exports as new csv file to archive folder
-        filename = 'emissions_' + date_time + '.csv'
-        filepath_arch = get_filepath('inventory/emissions_archive/' \
-                                     + filename)
-        shutil.copyfile(filepath, filepath_arch)
-
-    if own_file:
-        # Joins old and new database if it is a new file
-        old_emissions = pd.read_csv(filepath)
-        product_emissions = pd.concat([old_emissions, product_emissions])
-    
-    # Creates new .csv file with emissions
-    product_emissions.to_csv(filepath, index=False)
-
-    return
-
-
-#### UPDATES TRAVEL DISTANCES WITH INPUT ####
-def update_travel_distances(start, end, distance, sea=False):
-    '''
-    Updates travel distances file given new information.
-
-    Parameters:
-    -----------
-    start: str
-        Start location name.
-    end: str
-        End location name.
-    distance: float
-        Distance between start and end.
-    sea: bool, optional (default=False)
-        If sea travel file or land travel file should be updated.
-
-    Returns:
-    --------
-    None.
-    '''
-    if sea:
-        filepath = get_filepath(f'data/sea_travel_distance.csv')
-    else:
-        filepath = get_filepath(f'data/land_travel_distance.csv')
-
-    if os.path.isfile(filepath):
-        with open(filepath, 'r') as f:
-            # Reader object will iterate over lines in csv file 
-            csv_reader = csv.reader(f)
-  
-            # Convert to list 
-            file_contents = list(csv_reader) 
-
-            # Extracts data
-            header = file_contents[0]
-            data = file_contents[1:]
-
-    new_info = [start.lower(), end.lower(), distance]
-    data.append(new_info)
-
-    travel_distance = pd.DataFrame(data, columns=header)
-    travel_distance.to_csv(filepath, index=False)
-
-    return

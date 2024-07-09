@@ -11,6 +11,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from emissions_calculator import product_calculator as calc
+from emissions_calculator import read_data
+from emissions_calculator import update_files as update
+from emissions_calculator import read_upload
 
 import searoute as sr
 from geopy.geocoders import Nominatim
@@ -28,29 +31,51 @@ def exit_program():
     sys.exit(0)
 
 def check_data(data):
-    '''Checks that data has successfully been read in.'''
+    '''Checks that data has successfully been read in, else exits program.'''
     if data is None:
         exit_program()
 
 def is_local():
-    '''Extracts if program is running locally and if can save to database.'''
+    '''Extracts if program is running locally.'''
     cloud = False
     for i in os.environ:
         if i == 'HOSTNAME':
             cloud = True
 
-    if not cloud:
-        save_option = True
-    else:
-        save_option = False
-
-    return save_option
+    return cloud
 
 #### ADDITIONAL TRAVEL CALCULATIONS ####
 def travel_end_loc(selected, dest_city, no_comp, additional_factors,
-                   land_travel_dist, save_option, key=0,
+                   land_travel_dist, cloud, key=0,
                    from_database=False):
+    '''
+    Calculates GHG emissions corresponding to travel to end city from point
+    where it begins journey in UK.
 
+    Parameters:
+    -----------
+    selected: pd.DataFrame
+        Contains product information.
+    dest_city: str
+        City where product will be used.
+    no_comp: int
+        Number of components in product.
+    additional_factors: pd.DataFrame
+        Contains travel emissions factors.
+    land_travel_dist: pd.DataFrame
+        Contains distances between relevant cities.
+    cloud: bool
+        If travel distance can be saved to file.
+    key: optional
+        Needed for st.number_input if used multiple times.
+    from_database: bool, optional (default=False)
+        If it is read from database or created by user input.
+    
+    Returns:
+    --------
+    travel_emissions: float
+        Additional emissions for travel.
+    '''
     travel_emissions = 0.0
 
     for i in range(no_comp):
@@ -82,21 +107,21 @@ def travel_end_loc(selected, dest_city, no_comp, additional_factors,
                     city1_name = depart_loc_uk.title()
                     city2_name = dest_city.title()
                     dist_km = st.number_input(f'''Input travel distance 
-                                                  between {city1_name} and 
-                                                  {city2_name}''',
-                                                  min_value=0.0,
-                                                  step=1.0,
-                                                  format='%0.3f',
-                                                  key='ld_%d'%key)
+                                              between {city1_name} and 
+                                              {city2_name}''',
+                                              min_value=0.0,
+                                              step=1.0,
+                                              format='%0.3f',
+                                              key='ld_%d'%key)
 
                     # Adds new info to df to prevent repeats
                     if dist_km > 0.0:
                         land_travel_dist.loc[(city1, city2), 
                                              ['distance_km']] = [dist_km]
-                        if save_option:
-                            calc.update_travel_distances(city1,
-                                                         city2,
-                                                         dist_km)
+                        if not cloud: # Updates file if available
+                            update.update_travel_distances(city1,
+                                                           city2,
+                                                           dist_km)
 
                 travel_emissions += calc.calc_travel_emissions(dist_km,
                                                                no_uses,
@@ -113,7 +138,7 @@ def format_integer_without_commas(x):
     return x
 
 def choose_database(chosen, product_emissions, no_comp, additional_factors,
-                    land_travel_dist, dest_city, save_option):
+                    land_travel_dist, dest_city, cloud):
     '''
     Selects relevant part of emissions database if certain product
     is selected from list.
@@ -126,10 +151,21 @@ def choose_database(chosen, product_emissions, no_comp, additional_factors,
         Contains current products inventory.
     no_comp: int
         Maximum number of components in data.
+    additional_factors: pd.DataFrame
+        Contains travel emissions factors.
+    land_travel_dist: pd.DataFrame
+        Contains distances between relevant cities.
+    dest_city: str
+        City where product will be used.
+    cloud: bool
+        Determines if travel distance can be saved to file.
 
     Returns:
     -------
-    None
+    original_selected_df: pd.DataFrame
+        Extract from original database containing chosen products.
+    product_emissions: pd.DataFrame
+        Contains emissions values only.
     '''
     # Finds information in database on the selected product
     selected = product_emissions[product_emissions['product'] == chosen]\
@@ -140,7 +176,7 @@ def choose_database(chosen, product_emissions, no_comp, additional_factors,
     travel = selected['transport_emissions'].iloc[0]
     end_travel = travel_end_loc(selected, dest_city, no_comp,
                                 additional_factors, land_travel_dist,
-                                save_option, from_database=True)
+                                cloud, from_database=True)
     selected['transport_emissions'] = end_travel + travel
     original_selected_df = selected.copy(deep=True)
 
@@ -212,13 +248,20 @@ def select_autofill(selected_prod, product_categories, available_factor,
         Contains emissions factors.
     cities_list, ports_list, uk_locations: list
         List of cities, ports and places in UK to use as autofill.
+
+    Returns:
+    --------
+    selected_auto: dict
+        Autofill options corresponding to current product.
     '''
     selected_auto = {}
     
     count = 1
+    # Finds number of components up to where 0's appear
     total_comp = int(list(selected_prod.columns)[-7].split('_')[-1])
     for i in range(total_comp):
-        if selected_prod['component_' + str(count)].iloc[0] == '0':
+        c_name = selected_prod['component_' + str(count)].iloc[0]
+        if c_name == '0' or c_name == 0:
             no_comp = count - 1
             break
         elif i == (total_comp - 1):
@@ -243,23 +286,31 @@ def select_autofill(selected_prod, product_categories, available_factor,
                          database'.''')
             available_factor.insert(-2, comp)
             selected_auto['comp_' + str(i+1)] = available_factor.index(comp)
+        
         yr = selected_prod['manu_year_' + str(i+1)].iloc[0]
         selected_auto['yr_' + str(i+1)] = int(yr)
+        
         mass = selected_prod['mass_kg_' + str(i+1)].iloc[0]
         selected_auto['mass_' + str(i+1)] = float(mass)
+        
         bio = selected_prod['biogenic_' + str(i+1)].iloc[0]
         selected_auto['bio_' + str(i+1)] = True if bio == 1 else False
-        loc = selected_prod['manu_loc_' + str(i+1)].iloc[0]
-        selected_auto['loc_' + str(i+1)] = 0 if loc == '0' else \
-            cities_list.index(loc.title())
-        port = selected_prod['debark_port_' + str(i+1)].iloc[0]
-        selected_auto['port_' + str(i+1)] = 0 if port == '0' else \
-            ports_list.index(port.title())
-        uk_loc = selected_prod['depart_loc_uk_' + str(i+1)].iloc[0]
-        selected_auto['loc_uk_' + str(i+1)] = 0 if port == '0' else \
-            uk_locations.index(uk_loc.title())
+
+        loc = str(selected_prod['manu_loc_' + str(i+1)].iloc[0])
+        selected_auto['loc_' + str(i+1)] = 0 if loc == '0' \
+            else cities_list.index(loc.title())
+        
+        port = str(selected_prod['debark_port_' + str(i+1)].iloc[0])
+        selected_auto['port_' + str(i+1)] = 0 if port == '0' \
+            else ports_list.index(port.title())
+        
+        uk_loc = str(selected_prod['depart_loc_uk_' + str(i+1)].iloc[0])
+        selected_auto['loc_uk_' + str(i+1)] = 0 if uk_loc == '0' \
+            else uk_locations.index(uk_loc.title())
+        
         repro = selected_prod['reprocessing_' + str(i+1)].iloc[0]
         selected_auto['repro_' + str(i+1)] = repro
+        
         recycle = selected_prod['recycle_' + str(i+1)].iloc[0]
         incinerate = selected_prod['incinerate_' + str(i+1)].iloc[0]
         landfill = selected_prod['landfill_' + str(i+1)].iloc[0]
@@ -279,10 +330,13 @@ def compare_changes(original, changed, name, index_names):
     '''Creates new dataframe to compare original product and changes made.'''
     # Creates df using name of product and emissions list
     new_df = pd.DataFrame([name] + changed).T
+    
     # Renames columns with required emission type
     new_df.columns = ['Product'] + index_names
+    
     # Sets index as product name
     new_df.set_index('Product', inplace=True)
+    
     # Combines old and new emissions into df
     comb_df = pd.concat([original, new_df], ignore_index=True)
 
@@ -296,26 +350,38 @@ def create_bar_chart(data, comp=False, prod_name=None, w=1000, h=700, g=0.2):
     Parameters:
     -----------
     data: pd.Dataframe
-        rows = products, columns = emissions broken down into
-        categories.
+        rows = products, columns = emissions broken down into categories.
+    comp: bool, optional (default=False)
+        If comparison plot required.
+    prod_name: str, optional (default=None)
+        Name for plot if required.
+    w: int, optional (default=1000)
+        Width of plot.
+    h: int, optional (default=700)
+        Height of plot.
+    g: float, optional (default=0.2)
+        Separation of bars.
         
     Returns:
     -------
     plotly.figure
     '''
-    # Takes dataframe and converts information to lists
+    # Creates title
     if comp:
         name = ['Original Product', 'New Product']
         title = f'Emissions Comparison: {prod_name.title()}'
     else:
         name = data['Product'].to_list()
         title = 'Emissions Comparison'
+    
+    # Takes dataframe and converts information to lists
     make = data['Manufacturing / kg CO2e'].to_list()
     travel = data['Transport / kg CO2e'].to_list()
     use = data['Use / kg CO2e'].to_list()
     repro = data['Reprocessing / kg CO2e'].to_list()
     waste = data['Disposal / kg CO2e'].to_list()
 
+    # Prevents error if < 0
     for ind, val in enumerate(waste):
         if val < 0.0:
             waste[ind] = 0.0
@@ -351,7 +417,13 @@ def create_pie_chart(data, name='Product', h=650, w=900):
     -----------
     data: pd.Series
         Product emissions broken down into categories.
-        
+    name: str, optional (default=Product)
+        Name for plot if required.
+    h: int, optional (default=650)
+        Height of plot.
+    w: int, optional (default=900)
+        Width of plot.
+
     Returns:
     -------
     plotly.figure
@@ -365,10 +437,12 @@ def create_pie_chart(data, name='Product', h=650, w=900):
     else:
         colours = ['orange', 'blue', 'purple', 'green', 'crimson']
 
+    # Create pie chart
     fig = go.Figure(data=[go.Pie(labels=data.index,
                                  values=data.values,
                                  marker=dict(colors=colours))])
 
+    # Figure layout
     fig.update_layout(
         autosize=False,
         width=w,
@@ -381,9 +455,9 @@ def create_pie_chart(data, name='Product', h=650, w=900):
 
 def comparison_emissions_graphic(total):
     '''Displays emissions in terms of comparison values.'''
-    comp = round((total / 0.1224), 2)
-
-    st.markdown(f'''> 🚗 Emissions equivalent to driving **{comp} km** in 
+    # CO2e emissions per km driven by average car
+    car_comp = round((total / 0.1224), 2)
+    st.markdown(f'''> 🚗 Emissions equivalent to driving **{car_comp} km** in
                     an average passenger car (EEA, 2020).''')
 
     return
@@ -422,7 +496,7 @@ def convert_df(df):
     return df.to_csv(index=False).encode('utf-8')
 
 def download_example_file():
-
+    '''Download example file for users to fill in.'''
     ex_df = pd.read_excel('resources/factors_example.xlsx')
     ex = convert_df(ex_df)
     
@@ -439,9 +513,9 @@ def download_databases_new_product(product_info, emissions_info,
                                    extra_travel, incl_travel,
                                    to_database=False):
     '''Download dataframes with new product added.'''
-    products = calc.update_inventory(product_info, to_database)
-    emissions, single_prod = calc.update_emissions(emissions_info,
-                                                   to_database)
+    products = update.update_inventory(product_info, to_database)
+    emissions, single_prod = update.update_emissions(emissions_info,
+                                                     to_database)
 
     if single_prod is not None:
         # Adds extra travel emissions if required to file output
@@ -484,19 +558,16 @@ def download_databases_new_product(product_info, emissions_info,
 
 
 #### MAIN ####
-# Initialise session state to store variables
-if 'product' not in st.session_state:
-    st.session_state.product = None
-
 # Removes whitespace from edge of page
 st.set_page_config(layout='wide')
 
 # Page title
 st.title('Calculate Emissions for Products')
-
-# Information
 st.markdown(f'''Input product details to get an estimate of its
                 carbon footprint per use.''')
+
+# Checks if running locally
+cloud = is_local()
 
 #### READ IN DATA ####
 # Finds current year
@@ -505,22 +576,21 @@ year = int(today.strftime("%Y"))
 
 with st.spinner('Loading data...'):
     # Reads in factors file
-    factors = calc.read_factors()
-    check_data(factors)
+    factors = read_data.read_factors()
     
     # Reads other factors such as travel and electricity/water/gas
-    additional_factors = calc.read_additional_factors()
+    additional_factors = read_data.read_additional_factors()
     check_data(additional_factors)
     
     # Read list of processes in factors file
-    process_list = calc.read_processes()
+    process_list = read_data.read_processes()
     check_data(process_list)
     
     # Reads in cities and ports
-    cities_list, uk_cities_list = calc.read_cities()
+    cities_list, uk_cities_list = read_data.read_cities()
     check_data(cities_list)
     check_data(uk_cities_list)
-    ports_list, uk_ports_list = calc.read_ports()
+    ports_list, uk_ports_list = read_data.read_ports()
     check_data(ports_list)
     check_data(uk_ports_list)
     
@@ -529,10 +599,10 @@ with st.spinner('Loading data...'):
     uk_locations = sorted(list(set(uk_locations)))
     
     # Reads in travel distances
-    land_travel_dist, sea_travel_dist = calc.read_travel_dist()
+    land_travel_dist, sea_travel_dist = read_data.read_travel_dist()
     
     # Inventory file
-    product_emissions = calc.read_emissions()
+    product_emissions = read_data.read_emissions()
     check_data(product_emissions)
     current_prod = product_emissions['product'].to_list()
 
@@ -554,12 +624,12 @@ with st.expander('Update Information'):
     if defra_file is not None:
         defra_year = st.number_input(f'Enter file year', min_value=2000,
                                      max_value=year, step=1, value=year)
-        if save_option:
+        if not cloud:
             defra_to_database = True
         else:
             defra_to_database = False
-        additional_factors = calc.new_defra(defra_file, str(defra_year),
-                                            to_database=defra_to_database)
+        additional_factors = read_upload.new_defra(
+            defra_file, str(defra_year), to_database=defra_to_database)
 
     st.markdown(f'''**Choose own emissions factors (kg CO2e) for the following
                     processes if required.** Leave as 0 to use factors in
@@ -577,9 +647,17 @@ with st.expander('Update Information'):
     new_decon_gas = st.number_input(f'Gas use (m3)', min_value = 0.0,
                                     step=0.0001, format='%0.4f')
 
+    if (not cloud and len(new_decon_name) > 0):
+        if st.checkbox('Add to file'):
+            calc.add_new_decon_to_file(new_decon_name, new_decon_elec,
+                                       new_decon_water, new_decon_gas)
+
 
 #### ADD OWN FACTORS FILE ####
-if st.checkbox(f'Upload own emissions factors file'):
+need_factors = True if factors is None else False
+upload_factors = st.checkbox(f'Upload own emissions factors file',
+                             value=need_factors)
+if upload_factors:
     join_files = False
     own_factors_file = st.file_uploader(f'Upload own emission factors file',
                                         type=['csv'])
@@ -591,25 +669,24 @@ if st.checkbox(f'Upload own emissions factors file'):
         join_files = st.checkbox(f'Include factors from current database')
         
         # Joins with stored data if required
-        if join_files:
+        if join_files and factors is not None:
             factors = pd.concat([own_factors_df, factors])
-            if st.checkbox('Update factors file'):
-                with st.spinner('Updating...'):
-                    calc.update_factors_file(factors)
-                st.success('Done!')
         else:
             factors = own_factors_df
 
-try:
-    # Creates list of available factors to choose from
-    available_factor = factors['component'].to_list()
-    available_factor = list(dict.fromkeys(available_factor))
-    # Capitalises names
-    available_factor = [word.capitalize() for word in available_factor]
-    # Adds option for other
-    available_factor.append('Other')
-except KeyError:
-    st.error('Error: Incorrect factors file format.')
+if factors is not None:
+    try:
+        # Creates list of available factors to choose from
+        available_factor = factors['component'].to_list()
+        available_factor = list(dict.fromkeys(available_factor))
+        # Capitalises names
+        available_factor = [word.capitalize() for word in available_factor]
+        # Adds option for other
+        available_factor.append('Other')
+    except KeyError:
+        st.error('Error: Incorrect factors file format.')
+        exit_program()
+else:
     exit_program()
 
 
@@ -619,7 +696,7 @@ additional_factors.set_index(['name', 'unit', 'year'], inplace=True)
 additional_factors = additional_factors.sort_index()
 
 # Reads info on decontamination units
-decon_units = calc.read_decon_units()
+decon_units = read_data.read_decon_units()
 if new_decon_name != '':
     decon_units[new_decon_name + ' electricity'] = ['kwh', new_decon_elec]
     decon_units[new_decon_name + ' water'] = ['l', new_decon_water]
@@ -634,9 +711,11 @@ for ind, nm in enumerate(decon_names_all):
 decon_info = False
 decon_type = None
 
+
 #### USER INPUT ####
 # User can input name of product
 name = st.text_input('Name of Product').lower()
+
 
 #### USER SELECTS DATABASE PRODUCT IF AVAILABLE ####
 # Shows list of all products currently in dataframe
@@ -678,7 +757,7 @@ if chosen is not None:
     prod_df, prod_em = choose_database(chosen.lower(), product_emissions,
                                        no_comp, additional_factors,
                                        land_travel_dist, dest_city,
-                                       save_option)
+                                       cloud)
     comparison_emissions_graphic(prod_em['Total / kg CO2e'].iloc[0])
 
     pie_chart = create_pie_chart(prod_em.T.squeeze(), name=chosen)
@@ -994,10 +1073,10 @@ if chosen is None or change_info:
                                                         step=1.0,
                                                         format='%0.3f',
                                                         key='ld1_%d'%i)
-                        if save_option and land_dist_km > 0.0:
-                            calc.update_travel_distances(manu_loc,
-                                                         debark_port,
-                                                         land_dist_km)
+                        if not cloud and land_dist_km > 0.0:
+                            update.update_travel_distances(manu_loc,
+                                                           debark_port,
+                                                           land_dist_km)
 
                 #### LOCATION IN UK ####
                 # Where they travel from in UK (port if from overseas)
@@ -1049,10 +1128,10 @@ if chosen is None or change_info:
                                                         step=1.0,
                                                         format='%0.3f',
                                                         key='ld2_%d'%i)
-                        if save_option and land_dist_km > 0.0:
-                            calc.update_travel_distances(manu_loc,
-                                                         city2,
-                                                         land_dist_km)
+                        if not cloud and land_dist_km > 0.0:
+                            update.update_travel_distances(manu_loc,
+                                                           city2,
+                                                           land_dist_km)
                 
                 all_info.append(land_dist_km)
                 all_info.append(sea_dist_km)
@@ -1060,6 +1139,7 @@ if chosen is None or change_info:
                 #### REPROCESSING ####
                 # User inputs method of reprocessing
                 re_ind = 0
+                perc_val = 0.0
                 if autofill:
                     re_auto = selected_auto['repro_' + str(i+1)]
                     if re_auto != '0':
@@ -1067,10 +1147,6 @@ if chosen is None or change_info:
                         if re_auto != 'laundry':
                             perc_val = float(re_auto[re_auto.\
                                              find('(')+1:re_auto.find(')')])
-                    else:
-                        perc_val = 0.0
-                else:
-                    perc_val = 0.0
                 
                 repro = st.selectbox('Component reprocessing',
                                      [None, 'Laundry', 'HSDU'], index=re_ind,
@@ -1231,7 +1307,7 @@ if chosen is None or change_info:
         # Additional travel to end location
         extra_travel = travel_end_loc(product, dest_city, no_comp,
                                       additional_factors, land_travel_dist,
-                                      save_option, key=1)
+                                      cloud, key=1)
         # Creates pd.Series containing emissions for product
         index_names = ['Total / kg CO2e', 'Manufacturing / kg CO2e', 
                        'Transport / kg CO2e', 'Use / kg CO2e',
@@ -1297,7 +1373,7 @@ if chosen is None or change_info:
             incl_travel = st.checkbox(f'''Include travel to end location
                                           in single product file''')
             to_database = False
-            #if save_option:
+            #if not cloud:
             #    to_database = st.checkbox(f'Save product to database')
             download_databases_new_product(prod_info, emissions_info,
                                            extra_travel, incl_travel,

@@ -24,3 +24,5 @@ dependencies:
     - streamlit-bokeh-events==0.1.2
     - fpdf==1.7.2
     - kaleido==0.2.1
+    - google-auth==2.31.0
+    - gspread_pandas==3.3.0

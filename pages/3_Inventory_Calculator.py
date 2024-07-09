@@ -13,6 +13,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from emissions_calculator import inventory_calculator as calc
+from emissions_calculator import read_data
+from emissions_calculator import update_files as update
 
 #### FUNCTIONS ####
 @st.cache_data # Cache the conversion to prevent computation on every rerun
@@ -37,22 +39,17 @@ def is_local():
         if i == 'HOSTNAME':
             cloud = True
 
-    if not cloud:
-        save_option = True
-    else:
-        save_option = False
-
-    return save_option
+    return cloud
 
 #### ADDITIONAL TRAVEL CALC ####
 def travel_end_loc(df, dest_city, no_comp):
     '''Calculates emissions to end city.'''
     # Reads other factors such as travel and electricity/water/gas
-    additional_factors = calc.read_additional_factors()
+    additional_factors = read_data.read_additional_factors_inv()
     check_data(additional_factors)
 
     # Reads in travel distances
-    land_travel_dist, sea_travel_dist = calc.read_travel_dist()
+    land_travel_dist, sea_travel_dist = read_data.read_travel_dist()
 
     count = 0
     travel_emissions = []
@@ -261,7 +258,7 @@ st.title('Calculate Emissions from Inventory File')
 st.markdown(f'''You can either upload your own file or update and download
                 the current emissions database.''')
 
-save_option = is_local()
+cloud = is_local()
 
 # Finds current year
 today = datetime.now()
@@ -275,47 +272,47 @@ with st.expander('File requirements and example'):
     download_example_file()
     st.markdown(read_file_contents('resources/inventory_own_products.md'))
 
-#### READS IN INVENTORY FILE ####
-if uploaded_file is not None:
-    try: # Reads in uploaded file
-        products = pd.read_csv(uploaded_file)
-    except pd.errors.ParserError: # Stops if wrong type of file used
-        st.error('Error: Incorrect file format.')
-        exit_program()
-    own_file = True
-else: # Otherwise uses current database
-    products = calc.read_products()
-    check_data(products)
-    own_file = False
-
-try:
-    # Finds number of components given the data
-    no_comp = int(list(products.columns)[-1].split('_')[-1])
-except ValueError: # Stops if wrong type of file used
-    st.error('Error: Incorrect file format.')
-    exit_program()
 
 #### READS IN DATA ####
 with st.spinner('Loading data...'):
-    factors = calc.read_factors() # Reads in factors file
+    if uploaded_file is not None:
+        try: # Reads in uploaded file
+            products = pd.read_csv(uploaded_file)
+        except pd.errors.ParserError: # Stops if wrong type of file used
+            st.error('Error: Incorrect file format.')
+            exit_program()
+        own_file = True
+    else: # Otherwise uses current database
+        products = read_data.read_products()
+        check_data(products)
+        own_file = False
+    
+    try:
+        # Finds number of components given the data
+        no_comp = int(list(products.columns)[-1].split('_')[-1])
+    except ValueError: # Stops if wrong type of file used
+        st.error('Error: Incorrect file format.')
+        exit_program()
+
+    factors = read_data.read_factors_inv() # Reads in factors file
     check_data(factors)
     
-    additional_factors = calc.read_additional_factors()
+    additional_factors = read_data.read_additional_factors_inv()
     check_data(additional_factors)
     
     # Reads in cities and ports
-    cities_list, uk_cities_list = calc.read_cities()
+    cities_list, uk_cities_list = read_data.read_cities()
     check_data(cities_list)
     check_data(uk_cities_list)
-    ports_list, uk_ports_list = calc.read_ports()
+    ports_list, uk_ports_list = read_data.read_ports()
     check_data(ports_list)
     check_data(uk_ports_list)
     
     # Reads in travel distances
-    land_travel_dist, sea_travel_dist = calc.read_travel_dist()
+    land_travel_dist, sea_travel_dist = read_data.read_travel_dist()
     
     # Reads info on decontamination units
-    decon_units = calc.read_decon_units()
+    decon_units = read_data.read_decon_units()
     check_data(decon_units)
 
 # Extracts name of decontamination units to select
@@ -324,6 +321,7 @@ decon_names = []
 for ind, nm in enumerate(decon_names_all):
     if ind%3 == 0:
         decon_names.append(nm[:-12].capitalize())
+
 
 #### UPLOAD OWN EMISSIONS FACTORS ####
 own_factors_file = None
@@ -351,6 +349,7 @@ if st.checkbox('Upload own emissions factors file'):
     elif own_factors_file is not None:
         factors = own_factors_df
 
+
 #### SELECT RELEVANT INFO ####
 # User inputs destination city for final travel distance calc
 felixstowe_ind = uk_cities_list.index('Felixstowe')
@@ -364,6 +363,7 @@ product_year = st.number_input('Year of use/disposal emissions factors',
 
 decon_type = st.selectbox('Select decontamination unit', decon_names).lower()
 
+
 ##### SELECT PRODUCTS TO PLOT #####
 st.write('\n')
 current_prods = products['product'].to_list()
@@ -376,15 +376,17 @@ to_plot = [p.lower() for p in to_plot]
 if len(to_plot) > 0:
     st.session_state.multiselect = to_plot
 
+
 #### OPTION TO INCLUDE EXTRA TRAVEL EMISSIONS ####
 inc_additional = st.checkbox(f'''Include travel to end location in CSV
                                  file''', key='travel_csv')
 st.session_state.additional_csv = inc_additional
 
 #update = False
-#if save_option:
+#if not cloud:
 #    update = st.checkbox('Update emissions file following calculation',
 #                         key='update')
+
 
 #### PERFORM CALCULATIONS ####
 if st.button('Calculate Emissions'): # If clicked, performs calculation
@@ -430,6 +432,8 @@ if st.button('Calculate Emissions'): # If clicked, performs calculation
 
         except (KeyError, AttributeError) as e: # Stops if wrong type of file used
             st.error('Error: Incorrect file format.')
+            st.markdown('**Error Message:**')
+            st.write(e)
             exit_program()
 
         total_inc_end_travel = []
@@ -456,12 +460,12 @@ if st.button('Calculate Emissions'): # If clicked, performs calculation
     st.session_state.calculation = results
     st.session_state.additional_calculation = results_inc_additional
 
-    #if update and save_option:
+    #if update and not cloud:
     #    own = False
     #    if uploaded_file is not None:
     #        own = True
-    #    calc.update_emissions(products, total_make, total_travel, use,
-    #                          total_repro, net_waste, total, own)
+    #    update.update_emissions(products, total_make, total_travel, use,
+    #                            total_repro, net_waste, total, own)
 
 #### PLOT AND DISPLAY RESULTS ####
 # Plots results if required and prints dataframe of results

@@ -16,6 +16,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from emissions_calculator import product_calculator as calc
+from emissions_calculator import read_data
+from emissions_calculator import update_files as update
 
 #### FUNCTIONS ####
 def read_file_contents(file_name):
@@ -28,22 +30,39 @@ def exit_program():
     sys.exit(0)
 
 def check_data(data):
-    '''Checks that data has successfully been read in.'''
+    '''Checks that data has successfully been read in, else exits program.'''
     if data is None:
         exit_program()
 
 #### ADDITIONAL CALCULATIONS ####
 def travel_end_loc(df, dest_city, no_comp):
-    '''Calculates emissions to end city.'''
+    '''
+    Calculates GHG emissions corresponding to travel to end city from point
+    where it begins journey in UK.
+
+    Parameters:
+    -----------
+    df: pd.DataFrame
+        Contains product information.
+    dest_city: str
+        City where product will be used.
+    no_comp: int
+        Number of components in product
+
+    Returns:
+    --------
+    travel_emissions: float
+        Additional emissions for travel.
+    '''
     # Reads other factors such as travel and electricity/water/gas
-    additional_factors = calc.read_additional_factors()
+    additional_factors = read_data.read_additional_factors()
     check_data(additional_factors)
     # Sets index and sorts additional factors
     additional_factors.set_index(['name', 'unit', 'year'], inplace=True)
     additional_factors = additional_factors.sort_index()
 
     # Reads in travel distances
-    land_travel_dist, sea_travel_dist = calc.read_travel_dist()
+    land_travel_dist, sea_travel_dist = read_data.read_travel_dist()
 
     count = 0
     travel_emissions = []
@@ -155,8 +174,6 @@ def choose_database(chosen_products, product_emissions, no_comp,
         Maximum number of components in data.
     dest_city: str
         City where products are transported to.
-    additional_factors: pd.DataFrame
-        Contains travel emissions factors.
 
     Returns:
     -------
@@ -170,11 +187,11 @@ def choose_database(chosen_products, product_emissions, no_comp,
         travel emissions to end location.
     '''
     # Finds information in database on the selected products
-    #selected = product_emissions[product_emissions['product']\
-    #                              .isin(chosen_products)]
-    #selected.set_index('product', inplace=True)
-    product_emissions.set_index('product', inplace=True)
-    selected = product_emissions.loc[chosen_products].copy(deep=True)
+    selected = product_emissions[product_emissions['product']\
+                                 .isin(chosen_products)].copy(deep=True)
+    selected.set_index('product', inplace=True)
+    #product_emissions.set_index('product', inplace=True)
+    #selected = product_emissions.loc[chosen_products].copy(deep=True)
 
     # Keeps copy of data in original form without additional travel
     original_df = selected.reset_index().copy(deep=True)
@@ -503,15 +520,16 @@ if own_file is not None:
 
 process_name = st.text_input(f'Enter name of process')
 
+
 #### READS IN DATA ####
 with st.spinner('Loading data...'):
     # Reads in cities and ports
-    cities_list, uk_cities_list = calc.read_cities()
+    cities_list, uk_cities_list = read_data.read_cities()
     check_data(cities_list)
     check_data(uk_cities_list)
     
     # Inventory file
-    product_emissions = calc.read_emissions()
+    product_emissions = read_data.read_emissions()
     check_data(product_emissions)
 
 # Joins with current database if required
@@ -591,7 +609,8 @@ if len(chosen) > 0:
             download_button(orig_df_trv)
         else:
             download_button(orig_df)
-    
+
+
         #### EXPORT PDF REPORT ####
         export_as_pdf = st.button('Export PDF report')
         if export_as_pdf:

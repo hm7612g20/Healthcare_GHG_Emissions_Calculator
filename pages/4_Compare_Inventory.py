@@ -13,6 +13,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from emissions_calculator import inventory_calculator as calc
+from emissions_calculator import read_data
+from emissions_calculator import update_files as update
 
 #### FUNCTIONS ####
 @st.cache_data # Cache the conversion to prevent computation on every rerun
@@ -37,12 +39,7 @@ def is_local():
         if i == 'HOSTNAME':
             cloud = True
 
-    if not cloud:
-        save_option = True
-    else:
-        save_option = False
-
-    return save_option
+    return cloud
 
 #### DOWNLOADS ####
 def convert_df(df):
@@ -206,7 +203,11 @@ st.set_page_config(layout='wide')
 # Page title
 st.title('Change and Compare Emissions from Inventory File')
 
-save_option = is_local()
+# Show introductory markdown
+st.markdown(f'''Use this page to change and compare product characteristics in
+                the current product database.''')
+
+cloud = is_local()
 
 # Finds current year
 today = datetime.now()
@@ -214,26 +215,26 @@ year = int(today.strftime("%Y"))
 
 #### READS IN DATA ####
 with st.spinner('Loading data...'):
-    products = calc.read_products()
+    products = read_data.read_products()
     check_data(products)
     
     # Finds number of components given the data
     no_comp = int(list(products.columns)[-1].split('_')[-1])
     
-    emissions = calc.read_emissions()
+    emissions = read_data.read_emissions()
     check_data(emissions)
     
-    factors = calc.read_factors() # Reads in factors file
+    factors = read_data.read_factors_inv() # Reads in factors file
     check_data(factors)
     
-    additional_factors = calc.read_additional_factors()
+    additional_factors = read_data.read_additional_factors_inv()
     check_data(additional_factors)
     
     # Reads in cities and ports
-    cities_list, uk_cities_list = calc.read_cities()
+    cities_list, uk_cities_list = read_data.read_cities()
     check_data(cities_list)
     check_data(uk_cities_list)
-    ports_list, uk_ports_list = calc.read_ports()
+    ports_list, uk_ports_list = read_data.read_ports()
     check_data(ports_list)
     check_data(uk_ports_list)
     
@@ -242,10 +243,10 @@ with st.spinner('Loading data...'):
     uk_locations = sorted(list(set(uk_locations)))
     
     # Reads in travel distances
-    land_travel_dist, sea_travel_dist = calc.read_travel_dist()
+    land_travel_dist, sea_travel_dist = read_data.read_travel_dist()
     
     # Reads info on decontamination units
-    decon_units = calc.read_decon_units()
+    decon_units = read_data.read_decon_units()
     check_data(decon_units)
 
 # Extracts name of decontamination units to select
@@ -254,6 +255,7 @@ decon_names = []
 for ind, nm in enumerate(decon_names_all):
     if ind%3 == 0:
         decon_names.append(nm[:-12].capitalize())
+
 
 #### UPLOAD OWN EMISSIONS FACTORS ####
 own_factors_file = None
@@ -285,18 +287,32 @@ if st.checkbox('Upload own emissions factors file'):
 current_prods = products['product'].to_list()
 # Capitalizes first letter
 current_prods = [p.capitalize() for p in current_prods]
-to_compare = st.multiselect(f'###### **Select products to compare.**',
-                            current_prods)
-# Return to lower case so can access data in dataframe
-to_compare = [p.lower() for p in to_compare]
-if len(to_compare) > 0:
+
+all_compare = st.checkbox('Change all products in database')
+
+if not all_compare:
+    # User can select option
+    to_compare = st.multiselect(f'###### **Select products to compare.**',
+                                current_prods)
+    # Return to lower case so can access data in dataframe
+    to_compare = [p.lower() for p in to_compare]
+    if len(to_compare) > 0:
+        st.session_state.compare = to_compare
+    
+    original = products[products['product'].isin(to_compare)].copy(deep=True)
+    
+    original_emissions = emissions[emissions['product'].isin(to_compare)]\
+                         .copy(deep=True)
+else:
+    # Return to lower case so can access data in dataframe
+    to_compare = [p.lower() for p in current_prods]
     st.session_state.compare = to_compare
+    original = products.copy(deep=True)
+    original_emissions = emissions.copy(deep=True)
 
-original = products[products['product'].isin(to_compare)].copy(deep=True)
-
-original_emissions = emissions[emissions['product'].isin(to_compare)]\
-                     .copy(deep=True)
 original_emissions.rename(columns={'product' : 'Product'}, inplace=True)
+
+# Renames and filters items
 filter_items = ['Product', 'total_emissions', 'manufacture_emissions',
                 'transport_emissions', 'use_emissions',
                 'reprocessing_emissions', 'disposal_emissions']
@@ -306,7 +322,6 @@ col_names = {'total_emissions': 'Total / kg CO2e',
              'use_emissions': 'Use / kg CO2e',
              'reprocessing_emissions': 'Reprocessing / kg CO2e',
              'disposal_emissions': 'Disposal / kg CO2e'}
-
 orig_filt = original_emissions.filter(items=filter_items)
 # Renames columns
 orig_filt.rename(columns=col_names, inplace=True)
@@ -431,8 +446,10 @@ if change_yr:
             if comp != '0':
                 changed.at[index, 'manu_year_' + str(i+1)] = year_prod
 
-st.session_state.plots = st.checkbox(f'Show comparison plots')
-st.session_state.chnaged_info = changed
+# Options for plotting
+if not all_compare:
+    st.session_state.plots = st.checkbox(f'Show comparison plots')
+st.session_state.changed_info = changed
 
 #### PERFORM CALCULATIONS ####
 if st.button('Calculate Emissions'): # If clicked, performs calculation
@@ -493,7 +510,7 @@ if st.session_state.calculation is not None:
     original = st.session_state.original_calc
     info = st.session_state.original_info
     comp_plots = st.session_state.plots
-    changed_info = st.session_state.chnaged_info
+    changed_info = st.session_state.changed_info
 
     # Show dataframes
     st.markdown('**New**')
