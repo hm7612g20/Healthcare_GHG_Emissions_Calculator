@@ -292,7 +292,7 @@ all_compare = st.checkbox('Change all products in database')
 if not all_compare:
     # User can select option
     to_compare = st.multiselect(f'###### **Select products to compare**',
-                                current_prods)
+                                current_prods, key=1)
     # Return to lower case so can access data in dataframe
     to_compare = [p.lower() for p in to_compare]
     if len(to_compare) > 0:
@@ -334,6 +334,13 @@ for i in range(no_comp):
     filter_items.append('manu_year_' + str(i+1))
 st.session_state.original_info = original_emissions.filter(items=filter_items)
 
+#### SELECT INFORMATION TO CHANGE ####
+change_location = st.checkbox('Change manufacture location')
+change_yr = st.checkbox('Change year of manufacture')
+change_decon = st.checkbox('Change sterilisation unit')
+
+changed = original.copy(deep=True)
+
 
 #### SELECT RELEVANT INFO ####
 # User inputs destination city for final travel distance calc
@@ -348,12 +355,8 @@ product_year = st.number_input('Year of use/disposal emissions factors',
 
 decon_type = 'bmm weston steam steriliser'
 
-#### SELECT INFORMATION TO CHANGE ####
-change_location = st.checkbox('Change manufacture location')
-
-change_yr = st.checkbox('Change year of manufacture')
-
-changed = original.copy(deep=True)
+if change_location or change_yr or change_decon:
+    st.markdown('**Make changes below:**')
 
 #### CHANGE LOCATION ####
 if change_location:
@@ -445,10 +448,16 @@ if change_yr:
             if comp != '0':
                 changed.at[index, 'manu_year_' + str(i+1)] = year_prod
 
+#### CHANGE DECON ####
+if change_decon:
+    decon_type = st.selectbox('Choose decontamination unit',
+                              decon_names, index=1).lower()
+
 # Options for plotting
 if not all_compare:
     st.session_state.plots = st.checkbox(f'Show comparison plots')
 st.session_state.changed_info = changed
+
 
 #### PERFORM CALCULATIONS ####
 if st.button('Calculate Emissions'): # If clicked, performs calculation

@@ -514,8 +514,6 @@ if own_file is not None:
     own_df = pd.read_csv(own_file)
     join_files = st.checkbox(f'Include products from current database')
 
-process_name = st.text_input(f'Enter name of process')
-
 
 #### READS IN DATA ####
 with st.spinner('Loading data...'):
@@ -534,11 +532,6 @@ if join_files:
 elif own_file is not None:
     product_emissions = own_df
 
-# User inputs destination city for final travel distance calc
-felixstowe_ind = uk_cities_list.index('Felixstowe')
-dest_city = st.selectbox(f'Select approximate destination for product',
-                         uk_cities_list, index=felixstowe_ind).lower()
-
 try:
     # Creates list of products in inventory
     current_prod = product_emissions['product'].to_list()
@@ -548,8 +541,16 @@ except (AttributeError, KeyError) as e:
     st.error('Error: incorrect file format.')
     exit_program()
 
+process_name = st.text_input(f'Enter name of process')
+
+# User inputs destination city for final travel distance calc
+felixstowe_ind = uk_cities_list.index('Felixstowe')
+dest_city = st.selectbox(f'Select approximate destination for product',
+                         uk_cities_list, index=felixstowe_ind).lower()
+
 # Selects any number of products from the current inventory
 chosen = st.multiselect('Select products in process', current_prod)
+
 # Reverts names to lower case
 chosen = [c.lower() for c in chosen]
 
