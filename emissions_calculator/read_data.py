@@ -42,7 +42,7 @@ def read_gsheets(name):
 
 
 #### READ INVENTORY FILES ####
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl='1d')
 def read_products():
     '''Reads inventory of products into a pd.DataFrame.'''
     sh, spread = read_gsheets('products')
@@ -71,7 +71,7 @@ def read_products_local():
 
     return products
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl='1d')
 def read_emissions():
     '''Reads inventory of products and their emissions into a pd.DataFrame.'''
     sh, spread = read_gsheets('emissions')
@@ -102,7 +102,7 @@ def read_emissions_local():
 
 
 #### READ FACTORS ####
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl='1d')
 def read_factors():
     '''
     Reads factors file into a pd.DataFrame.
@@ -155,7 +155,7 @@ def read_factors_local():
 
     return factors
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl='1d')
 def read_factors_inv():
     '''
     Reads factors file into a pd.DataFrame for use in inventory calculator.
@@ -216,7 +216,7 @@ def read_factors_inv_local():
 
 
 #### READ ADDITIONAL FACTORS ####
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl='1d')
 def read_additional_factors():
     '''
     Reads factors file for laundry, disposal, transport, electricity, water
@@ -269,7 +269,7 @@ def read_additional_factors_local():
 
     return factors
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl='1d')
 def read_additional_factors_inv():
     '''
     Reads factors file for laundry, disposal, transport, electricity, water
@@ -330,7 +330,7 @@ def read_additional_factors_inv_local():
 
 
 #### READ TRAVEL DISTANCES ####
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl='1d')
 def read_travel_dist():
     '''Reads list of land and sea travel distances into a DataFrame.'''
     sh, spread = read_gsheets('land_travel_distance')

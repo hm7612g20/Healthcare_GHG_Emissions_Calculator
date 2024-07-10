@@ -97,7 +97,8 @@ def find_closest_year(data, year, need_cc=False):
 
     return val
 
-def extract_best_factor(factors, comp, loc, year, need_cc, searched_all):
+def extract_best_factor(factors, comp, loc, year, need_cc, country,
+                        prod, searched_all):
     '''
     Extracts the best factor in the factors file if available.
 
@@ -115,11 +116,15 @@ def extract_best_factor(factors, comp, loc, year, need_cc, searched_all):
     need_cc: bool
         True if carbon content should be extracted, False if emissions factor
         should be extracted.
+    country: str
+        Name of country where component made.
+    prod: str
+        Name of product.
     searched_all: bool
         If country is selected but specific factor not available, it then
         searches based on whether it is made in Europe or the rest of the
-        world so tries again. If cannot find information, it prints out an
-        error message.
+        world so tries again. Then it tries world. If cannot find information,
+        it prints out an error message.
     
     Returns:
     --------
@@ -162,18 +167,15 @@ def extract_best_factor(factors, comp, loc, year, need_cc, searched_all):
             fact = None
             # Prints out error message if location not available
             if searched_all:
-                if loc == 'rer':
-                    loc = 'europe'
-                elif loc == 'row':
-                    loc = 'rest of world'
-                if need_cc:
-                    st.error(f'No carbon content available for '
-                             f'**{comp.capitalize()}** in '
-                             f'{loc.capitalize()}. 0.0 will be used.')
-                else:
-                    st.error(f'No factor available for '
-                             f'**{comp.capitalize()}** in '
-                             f'{loc.capitalize()}. 0.0 will be used.')
+                rer_countries, row_countries = read_countries_continents()
+                if country.lower() in rer_countries:
+                    region = 'europe'
+                elif country.lower() in row_countries:
+                    region = 'rest of world'
+                if not need_cc:
+                    st.error(f'''{prod.title()}: No factor available for
+                             **{comp.title()}** in {country.title()},
+                             {region.title()} or World. 0.0 will be used.''')
 
     return fact, found
 
@@ -252,6 +254,7 @@ def manufacture_calc(products, factors, no_comp, dest_city):
     # Loops through all items in the products data frame
     for index, row in products.iterrows():
         prod_em = [] # Stores per use emissions for each component
+        prod = str(row['product'])
 
         for i in range(no_comp): # Loops through components of product
             comp = str(row['component_' + str(i+1)]) # Finds name of component
@@ -265,11 +268,13 @@ def manufacture_calc(products, factors, no_comp, dest_city):
                     manu_loc = dest_city + '(united kingdom)'
                 # Finds country where component made
                 loc = manu_loc[manu_loc.find('(')+1:manu_loc.find(')')]
+                country = manu_loc[manu_loc.find('(')+1:manu_loc.find(')')]
                 
                 # Tries to find the best factor for provided information
                 need_cc = False
                 fact, found = extract_best_factor(factors, comp, loc, year,
-                                                  need_cc, searched_all=False)
+                                                  need_cc, country, prod,
+                                                  searched_all=False)
 
                 if fact is None:
                     # If not found, loc not listed in file but can change
@@ -283,8 +288,16 @@ def manufacture_calc(products, factors, no_comp, dest_city):
                                  f'country.')
                         break
                     fact, found = extract_best_factor(factors, comp, loc,
-                                                      year, need_cc,
-                                                      searched_all=True)
+                                                      year, need_cc, country,
+                                                      prod,
+                                                      searched_all=False)
+                    if fact is None:
+                        # If still not found, tries world
+                        loc = 'world'
+                        fact, found = extract_best_factor(factors, comp, loc,
+                                                          year, need_cc,
+                                                          country, prod,
+                                                          searched_all=True)
 
             # Stops calculation if no component listed
             else:
@@ -433,8 +446,8 @@ def calc_travel_emissions(travel_dist, start, end, sea, no_uses, mass,
                     dist_km = dist_df
             except KeyError:
                 # If not in data frame, not in travel file - prints out name
-                st.error(f'Journey from {start} to {end} not listed in file '
-                         f'- product: {prod}.')
+                st.error(f'''Journey from {start} to {end} not listed in file
+                             - product: {prod}.''')
                 dist_km = 0.0
 
         # Uses this to calculate travel emissions
@@ -853,6 +866,8 @@ def disposal_calc(products, factors, no_comp, additional_factors,
         mass_for_recycle = 0
         mass_for_landfill = 0
         bio = 0
+
+        prod = str(row['product'])
     
         for i in range(no_comp): # Loops through components
             comp = str(row['component_' + str(i+1)]) # Finds name of component
@@ -878,13 +893,15 @@ def disposal_calc(products, factors, no_comp, additional_factors,
             if comp != '0':
                 if manu_loc == '0':
                     break
-                else:
-                    loc = manu_loc[manu_loc.find('(')+1:manu_loc.find(')')]
+                
+                loc = manu_loc[manu_loc.find('(')+1:manu_loc.find(')')]
+                country = manu_loc[manu_loc.find('(')+1:manu_loc.find(')')]
                 
                 # Tries to find best carbon content for provided information
                 need_cc = True
                 cc, found = extract_best_factor(factors, comp, loc, year,
-                                                need_cc, searched_all=False)
+                                                need_cc, country, prod,
+                                                searched_all=False)
     
                 if cc is None:
                     # If not found, location may not be listed in file but may
@@ -897,7 +914,16 @@ def disposal_calc(products, factors, no_comp, additional_factors,
                         st.error(f'Error: {loc} not a valid country.')
                         break
                     cc, found = extract_best_factor(factors, comp, loc, year,
-                                                    need_cc, searched_all=True)
+                                                    need_cc, country, prod,
+                                                    searched_all=False)
+
+                    if cc is None:
+                        # If still not found, tries world
+                        loc = 'world'
+                        cc, found = extract_best_factor(factors, comp, loc,
+                                                        year, need_cc,
+                                                        country, prod,
+                                                        searched_all=True)
             # Stops calculation if no component listed
             else:
                 break
