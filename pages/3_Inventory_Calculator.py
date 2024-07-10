@@ -215,10 +215,6 @@ def create_bar_chart(data):
     repro = sorted_data['Reprocessing / kg CO2e'].to_list()
     waste = sorted_data['Disposal / kg CO2e'].to_list()
 
-    for ind, val in enumerate(waste):
-        if val < 0.0:
-            waste[ind] = 0.0
-
     # Plots stacked bar chart broken down by emission type
     fig = go.Figure(go.Bar(x=name, y=make, marker_color='orange',
                            name='Manufacture'))
@@ -232,12 +228,14 @@ def create_bar_chart(data):
                 name='Disposal')
 
     # Figure set-up
-    fig.update_layout(barmode='stack',
-                      autosize=False,
-                      width=1000,
-                      height=800,
-                      title='Emissions',
-                      yaxis_title='Emissions / kg CO2e')
+    fig.update_layout(
+        barmode='relative',
+        autosize=False,
+        width=1000,
+        height=800,
+        title='Emissions',
+        yaxis_title='Emissions / kg CO2e'
+    )
 
     return fig
 
@@ -361,7 +359,8 @@ product_year = st.number_input('Year of use/disposal emissions factors',
                                min_value=1970, max_value=year,
                                value=year, step=1)
 
-decon_type = st.selectbox('Select decontamination unit', decon_names).lower()
+decon_type = st.selectbox('Select decontamination unit', decon_names,
+                          index=1).lower()
 
 
 ##### SELECT PRODUCTS TO PLOT #####

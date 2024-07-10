@@ -154,16 +154,12 @@ def create_bar_chart(data, orig, prod_name, w=800, h=600, g=0.3):
     use = data['Use / kg CO2e']
     repro = data['Reprocessing / kg CO2e']
     waste = data['Disposal / kg CO2e']
-    if waste < 0.0:
-        waste = 0.0
 
     make_orig = orig['Manufacturing / kg CO2e']
     travel_orig = orig['Transport / kg CO2e']
     use_orig = orig['Use / kg CO2e']
     repro_orig = orig['Reprocessing / kg CO2e']
     waste_orig = orig['Disposal / kg CO2e']
-    if waste_orig < 0.0:
-        waste_orig = 0.0
 
     # Plots stacked bar chart broken down by emission type
     fig = go.Figure(go.Bar(x=name, y=[make_orig, make],
@@ -178,13 +174,15 @@ def create_bar_chart(data, orig, prod_name, w=800, h=600, g=0.3):
                 name='Disposal')
 
     # Figure set-up
-    fig.update_layout(barmode='stack',
-                      autosize=False,
-                      bargap=g,
-                      width=w,
-                      height=h,
-                      title=f'Emissions Comparison: {prod_name.title()}',
-                      yaxis_title='Emissions / kg CO2e')
+    fig.update_layout(
+        barmode='relative',
+        autosize=False,
+        bargap=g,
+        width=w,
+        height=h,
+        title=f'Emissions Comparison: {prod_name.title()}',
+        yaxis_title='Emissions / kg CO2e'
+    )
 
     return fig
 
@@ -201,11 +199,12 @@ st.session_state.plots = None
 st.set_page_config(layout='wide')
 
 # Page title
-st.title('Change and Compare Emissions from Inventory File')
+st.title('Change Characterstics and Compare Emissions')
 
 # Show introductory markdown
-st.markdown(f'''Use this page to change and compare product characteristics in
-                the current product database.''')
+st.markdown(f'''Use this page to change product characteristics in the current
+                product database for multiple products and compare their GHG
+                emissions.''')
 
 cloud = is_local()
 
@@ -292,7 +291,7 @@ all_compare = st.checkbox('Change all products in database')
 
 if not all_compare:
     # User can select option
-    to_compare = st.multiselect(f'###### **Select products to compare.**',
+    to_compare = st.multiselect(f'###### **Select products to compare**',
                                 current_prods)
     # Return to lower case so can access data in dataframe
     to_compare = [p.lower() for p in to_compare]

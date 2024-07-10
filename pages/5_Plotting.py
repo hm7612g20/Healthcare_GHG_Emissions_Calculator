@@ -37,7 +37,7 @@ def create_bar_chart(data, exclude=0, num_plot=15, w=1000, h=700, a=False):
     plotly.figure
     '''
     # Plots breakdown of emissions for first n components
-    data = data.iloc[exclude:num_plot]
+    data = data.iloc[exclude:(num_plot+exclude)]
 
     # Sorts so highest total appears first
     sorted_data = data.sort_values(by=['total_emissions'], ascending=a)
@@ -54,10 +54,6 @@ def create_bar_chart(data, exclude=0, num_plot=15, w=1000, h=700, a=False):
     repro = sorted_data['reprocessing_emissions'].to_list()
     waste = sorted_data['disposal_emissions'].to_list()
 
-    for ind, val in enumerate(waste):
-        if val < 0.0:
-            waste[ind] = 0.0
-
     # Plots stacked bar chart broken down by emission type
     fig = go.Figure(go.Bar(x=name, y=make, marker_color='orange',
                            name='Manufacture'))
@@ -72,7 +68,7 @@ def create_bar_chart(data, exclude=0, num_plot=15, w=1000, h=700, a=False):
 
     # Figure set-up
     fig.update_layout(
-        barmode='stack',
+        barmode='relative',
         autosize=False,
         width=w,
         height=h,
@@ -96,29 +92,6 @@ with st.spinner('Loading data...'):
     # Reads in factors file
     factors = read_data.read_factors()
     
-    # Reads other factors such as travel and electricity/water/gas
-    additional_factors = read_data.read_additional_factors()
-    check_data(additional_factors)
-    
-    # Read list of processes in factors file
-    process_list = read_data.read_processes()
-    check_data(process_list)
-    
-    # Reads in cities and ports
-    cities_list, uk_cities_list = read_data.read_cities()
-    check_data(cities_list)
-    check_data(uk_cities_list)
-    ports_list, uk_ports_list = read_data.read_ports()
-    check_data(ports_list)
-    check_data(uk_ports_list)
-    
-    # List of places in UK, including ports
-    uk_locations = uk_ports_list + uk_cities_list
-    uk_locations = sorted(list(set(uk_locations)))
-    
-    # Reads in travel distances
-    land_travel_dist, sea_travel_dist = read_data.read_travel_dist()
-    
     # Inventory file
     product_emissions = read_data.read_emissions()
     check_data(product_emissions)
@@ -133,17 +106,23 @@ emissions = product_emissions.filter(items=['product',
                                             'disposal_emissions',
                                             'total_emissions'])
 
+cat_list = emissions['category'].unique().tolist()
+cat_list = [c.title() for c in cat_list]
+
 num_to_plot = st.number_input('Number of products to plot', min_value=1,
                               max_value=len(emissions), value=15) 
 
+#### HIGHEST EMISSIONS ####
 st.markdown('**Highest Emissions in Database:**')
 num_start_highest = st.number_input('Number of product to begin plot at',
                                     min_value=0, max_value=len(emissions),
                                     value=0, key='high') 
 highest = emissions.sort_values(by=['total_emissions'], ascending=False)
-highest_fig = create_bar_chart(highest)
+highest_fig = create_bar_chart(highest, exclude=num_start_highest,
+                               num_plot=num_to_plot)
 st.plotly_chart(highest_fig)
 
+#### LOWEST EMISSIONS ####
 st.markdown('**Lowest Emissions in Database:**')
 num_start_lowest = st.number_input('Number of product to begin plot at',
                                    min_value=0, max_value=len(emissions),
@@ -152,3 +131,24 @@ lowest = emissions.sort_values(by=['total_emissions'], ascending=True)
 lowest_fig = create_bar_chart(lowest, exclude=num_start_lowest,
                               num_plot=num_to_plot, a=True)
 st.plotly_chart(lowest_fig)
+
+#### SORT BY CATEGORY ####
+st.markdown('**Select by Category:**')
+cat = st.selectbox('Select category', cat_list).lower()
+num_start_cat = st.number_input('Number of product to begin plot at',
+                                min_value=0, max_value=len(emissions),
+                                value=0, key='cat')
+emissions_cat = emissions[emissions['category'] == cat]
+ch = emissions_cat[emissions_cat['product'] == 'disposable cup']
+
+st.markdown('**Highest Emissions by Category:**')
+cat_h = emissions_cat.sort_values(by=['total_emissions'], ascending=False)
+cat_h_fig = create_bar_chart(cat_h, exclude=num_start_cat,
+                             num_plot=num_to_plot)
+st.plotly_chart(cat_h_fig)
+
+st.markdown('**Lowest Emissions by Category:**')
+cat_l = emissions_cat.sort_values(by=['total_emissions'], ascending=True)
+cat_l_fig = create_bar_chart(cat_l, exclude=num_start_cat,
+                             num_plot=num_to_plot, a=True)
+st.plotly_chart(cat_l_fig)

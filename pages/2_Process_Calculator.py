@@ -281,10 +281,6 @@ def create_bar_chart(data, process_name):
     repro = sorted_data['Reprocessing / kg CO2e'].to_list()
     waste = sorted_data['Disposal / kg CO2e'].to_list()
 
-    for ind, val in enumerate(waste):
-        if val < 0.0:
-            waste[ind] = 0.0
-
     # Plots stacked bar chart broken down by emission type
     fig = go.Figure(go.Bar(x=name, y=make, marker_color='orange',
                            name='Manufacture'))
@@ -299,7 +295,7 @@ def create_bar_chart(data, process_name):
 
     # Figure set-up
     fig.update_layout(
-        barmode='stack',
+        barmode='relative',
         autosize=False,
         width=1000,
         height=700,
@@ -504,7 +500,7 @@ st.title('Calculate Total Emissions for Process')
 # Show introductory markdown
 st.markdown(f'''Select different products contained in the current database to
                 calculate the total emissions for a given process.''')
-st.markdown(f'''If a new product is required, it can be added using
+st.markdown(f'''If a new product is required, calculations can be made using
                 **Product Calculator** or input your own file.''')
 
 join_files = False

@@ -199,7 +199,7 @@ def choose_database(chosen, product_emissions, no_comp, additional_factors,
     
     for i in range(no_comp):
         # Stops searching if no more components
-        if selected['component_' + str(i+1)].iloc[0] == '0':
+        if str(selected['component_' + str(i+1)].iloc[0]) == '0':
             break
          # Additional filters are component names, product location and year
         filter_items.append(f'component_{i+1}')
@@ -207,8 +207,12 @@ def choose_database(chosen, product_emissions, no_comp, additional_factors,
         # Capitalises strings in these columns
         selected['component_' + str(i+1)] = selected['component_' + str(i+1)]\
                                             .str.title()
-        selected['manu_loc_' + str(i+1)] = selected['manu_loc_' + str(i+1)]\
-                                           .str.title()
+        try:
+            selected['manu_loc_' + str(i+1)] = selected['manu_loc_' + \
+                                                   str(i+1)].str.title()
+        except AttributeError:
+            selected['manu_loc_' + str(i+1)] = f'''{dest_city.title()}
+                                                   (United Kingdom)'''
 
         # Used to rename columns
         col_names['component_' + str(i+1)] = 'Component ' + str(i+1)
@@ -233,7 +237,7 @@ def choose_database(chosen, product_emissions, no_comp, additional_factors,
     return original_selected_df, product_emissions
 
 def select_autofill(selected_prod, product_categories, available_factor,
-                    cities_list, ports_list, uk_locations):
+                    dest_city, cities_list, ports_list, uk_locations):
     '''
     Creates dictionary of values to autofill the options for if user is
     changing a pre-exisiting product in the file.
@@ -246,6 +250,8 @@ def select_autofill(selected_prod, product_categories, available_factor,
         Categories of product.
     available_factor: pd.DataFrame
         Contains emissions factors.
+    dest_city: str
+        Destination of product.
     cities_list, ports_list, uk_locations: list
         List of cities, ports and places in UK to use as autofill.
 
@@ -296,9 +302,10 @@ def select_autofill(selected_prod, product_categories, available_factor,
         bio = selected_prod['biogenic_' + str(i+1)].iloc[0]
         selected_auto['bio_' + str(i+1)] = True if bio == 1 else False
 
+        dc = dest_city.title() + ' (United Kingdom)'
         loc = str(selected_prod['manu_loc_' + str(i+1)].iloc[0])
-        selected_auto['loc_' + str(i+1)] = 0 if loc == '0' \
-            else cities_list.index(loc.title())
+        selected_auto['loc_' + str(i+1)] = cities_list.index(dc) if \
+            loc == '0' else cities_list.index(loc.title())
         
         port = str(selected_prod['debark_port_' + str(i+1)].iloc[0])
         selected_auto['port_' + str(i+1)] = 0 if port == '0' \
@@ -381,11 +388,6 @@ def create_bar_chart(data, comp=False, prod_name=None, w=1000, h=700, g=0.2):
     repro = data['Reprocessing / kg CO2e'].to_list()
     waste = data['Disposal / kg CO2e'].to_list()
 
-    # Prevents error if < 0
-    for ind, val in enumerate(waste):
-        if val < 0.0:
-            waste[ind] = 0.0
-
     # Plots stacked bar chart broken down by emission type
     fig = go.Figure(go.Bar(x=name, y=make, marker_color='orange',
                            name='Manufacture'))
@@ -399,13 +401,15 @@ def create_bar_chart(data, comp=False, prod_name=None, w=1000, h=700, g=0.2):
                 name='Disposal')
 
     # Figure set-up
-    fig.update_layout(barmode='stack',
-                      autosize=False,
-                      bargap=g, 
-                      width=w,
-                      height=h,
-                      title=title,
-                      yaxis_title='Emissions / kg CO2e')
+    fig.update_layout(
+        barmode='relative',
+        autosize=False,
+        bargap=g, 
+        width=w,
+        height=h,
+        title=title,
+        yaxis_title='Emissions / kg CO2e'
+    )
 
     return fig
 
@@ -609,10 +613,8 @@ with st.spinner('Loading data...'):
 
 #### INPUT OWN FACTORS AND INFO ####
 # Finds which years of Defra file have been added to files
-defra_years_in_file = []
-for index, row in additional_factors.iterrows():
-    if row['name'] == 'hgv transport':
-        defra_years_in_file.append(row['year'])
+defra_yrs = additional_factors[additional_factors['name'] == 'hgv transport']
+defra_years_in_file = defra_yrs['year'].to_list()
 
 # Options for inputting own emissions factors in some cases
 with st.expander('Update Information'):
@@ -771,8 +773,9 @@ if chosen is not None:
     change_info = st.checkbox(f'Change product information')
     if change_info:
         selected_auto = select_autofill(prod_df, product_categories,
-                                        available_factor, cities_list,
-                                        ports_list, uk_locations)
+                                        available_factor, dest_city,
+                                        cities_list, ports_list, uk_locations)
+
 
 #### USER CREATES OWN NEW PRODUCT ####
 if chosen is None or change_info:
@@ -1111,11 +1114,11 @@ if chosen is None or change_info:
                     sea_dist_km = 0
 
                 # Distance between manufacture loc and place of depart for UK
-                if manu_loc != depart_loc_uk and uk_comp:
+                depart_uk_nm = depart_loc_uk + ' (united kingdom)'
+                if manu_loc != depart_uk_nm and uk_comp:
                     try: # Extracts distance travelled if in dataframe
-                        city2 = depart_loc_uk + ' (united kingdom)'
                         land_dist_km += land_travel_dist.at[(manu_loc,
-                                                             city2),\
+                                                             depart_uk_nm),\
                                                             'distance_km']
                     except KeyError: # If not, user inputs value
                         city1_nm = manu_loc[:manu_loc.find('(')-1].title()
@@ -1141,7 +1144,7 @@ if chosen is None or change_info:
                 re_ind = 0
                 perc_val = 0.0
                 if autofill:
-                    re_auto = selected_auto['repro_' + str(i+1)]
+                    re_auto = str(selected_auto['repro_' + str(i+1)])
                     if re_auto != '0':
                         re_ind = 1 if re_auto == 'laundry' else 2
                         if re_auto != 'laundry':
