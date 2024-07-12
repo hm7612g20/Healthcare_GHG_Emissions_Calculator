@@ -77,6 +77,7 @@ def travel_end_loc(selected, dest_city, no_comp, additional_factors,
         Additional emissions for travel.
     '''
     travel_emissions = 0.0
+    dest_city = str(dest_city)
 
     for i in range(no_comp):
         if from_database:
@@ -84,16 +85,16 @@ def travel_end_loc(selected, dest_city, no_comp, additional_factors,
             no_uses = selected['no_uses_' + str(i+1)].iloc[0] # Number of uses
             year = selected['manu_year_' + str(i+1)].iloc[0] # Year
             # Location where component begins journey in UK
-            depart_loc_uk = selected['depart_loc_uk_' + str(i+1)].iloc[0]
+            depart_loc_uk = str(selected['depart_loc_uk_' + str(i+1)].iloc[0])
         else:
             mass = selected['mass_kg_' + str(i+1)] # Mass of component
             no_uses = selected['no_uses_' + str(i+1)] # Number of uses
             year = selected['manu_year_' + str(i+1)] # Year
             # Location where component begins journey in UK
-            depart_loc_uk = selected['depart_loc_uk_' + str(i+1)]
+            depart_loc_uk = str(selected['depart_loc_uk_' + str(i+1)])
 
         if depart_loc_uk != dest_city and depart_loc_uk != '0' \
-            and depart_loc_uk != 0:
+            and depart_loc_uk != '0':
                 # Reads travel factors
                 travel_fact, _ = calc.read_travel_fact(additional_factors,
                                                        year)
@@ -377,16 +378,23 @@ def create_bar_chart(data, comp=False, prod_name=None, w=1000, h=700, g=0.2):
     if comp:
         name = ['Original Product', 'New Product']
         title = f'Emissions Comparison: {prod_name.title()}'
+        
+        # Takes dataframe and converts information to lists
+        make = data['Manufacturing / kg CO2e'].to_list()
+        travel = data['Transport / kg CO2e'].to_list()
+        use = data['Use / kg CO2e'].to_list()
+        repro = data['Reprocessing / kg CO2e'].to_list()
+        waste = data['Disposal / kg CO2e'].to_list()
     else:
-        name = data['Product'].to_list()
-        title = 'Emissions Comparison'
+        name = [data.name]
+        title = f'{name[0].title()} Emissions'
     
-    # Takes dataframe and converts information to lists
-    make = data['Manufacturing / kg CO2e'].to_list()
-    travel = data['Transport / kg CO2e'].to_list()
-    use = data['Use / kg CO2e'].to_list()
-    repro = data['Reprocessing / kg CO2e'].to_list()
-    waste = data['Disposal / kg CO2e'].to_list()
+        # Takes series and converts information to lists
+        make = [data['Manufacturing / kg CO2e']]
+        travel = [data['Transport / kg CO2e']]
+        use = [data['Use / kg CO2e']]
+        repro = [data['Reprocessing / kg CO2e']]
+        waste = [data['Disposal / kg CO2e']]
 
     # Plots stacked bar chart broken down by emission type
     fig = go.Figure(go.Bar(x=name, y=make, marker_color='orange',
@@ -413,7 +421,7 @@ def create_bar_chart(data, comp=False, prod_name=None, w=1000, h=700, g=0.2):
 
     return fig
 
-def create_pie_chart(data, name='Product', h=650, w=900):
+def create_pie_chart(data, name='Product', w=900, h=650):
     '''
     Create a plotly pie chart.
     
@@ -423,10 +431,10 @@ def create_pie_chart(data, name='Product', h=650, w=900):
         Product emissions broken down into categories.
     name: str, optional (default=Product)
         Name for plot if required.
-    h: int, optional (default=650)
-        Height of plot.
     w: int, optional (default=900)
         Width of plot.
+    h: int, optional (default=650)
+        Height of plot.
 
     Returns:
     -------
@@ -768,7 +776,15 @@ if chosen is not None:
     # Download image as PNG
     st.download_button(label='Download pie chart as PNG',
                        data=pie_chart.to_image(format='png', scale=3),
-                       file_name='emissions.png', mime='image/png', key=0)
+                       file_name='emissions.png', mime='image/png', key='pie')
+
+    bar_chart = create_bar_chart(prod_em.T.squeeze(), w=400, h=600)
+    st.plotly_chart(bar_chart)
+
+     # Download image as PNG
+    st.download_button(label='Download bar chart as PNG',
+                       data=bar_chart.to_image(format='png', scale=3),
+                       file_name='emissions.png', mime='image/png', key='bar')
     
     change_info = st.checkbox(f'Change product information')
     if change_info:
@@ -1337,30 +1353,42 @@ if chosen is None or change_info:
 
         # Outputs pie chart
         if total_series.iloc[0] > 0.0:
-            pie_chart_new = create_pie_chart(total_series, name=series_name)
-            st.plotly_chart(pie_chart_new)
+            new_pie_chart = create_pie_chart(total_series, name=series_name)
+            st.plotly_chart(new_pie_chart)
             
             # Download image as PNG
             st.download_button(label='Download pie chart as PNG',
-                               data=pie_chart_new.to_image(format='png',
-                                                           scale=3),
+                               data=new_pie_chart.to_image(
+                                   format='png', scale=3),
                                file_name='emissions.png',
-                               mime='image/png', key=1)
+                               mime='image/png', key='new_pie')
+
+            new_bar_chart = create_bar_chart(total_series,
+                                             w=400, h=600)
+            st.plotly_chart(new_bar_chart)
+
+             # Download image as PNG
+            st.download_button(label='Download bar chart as PNG',
+                               data=new_bar_chart.to_image(
+                                   format='png', scale=3),
+                               file_name='emissions.png', mime='image/png',
+                               key='new_bar')
 
         # Outputs comparison bar chart to original product if changes made
         if change_info:
             # Total data = new emissions, prod_em = original product
             comp_df = compare_changes(prod_em, total_data, chosen.title(),
                                       index_names)
-            bar_chart = create_bar_chart(comp_df, comp=True,
-                                         prod_name=chosen.title(), g=0.5)
-            st.plotly_chart(bar_chart)
+            comp_bar_chart = create_bar_chart(comp_df, comp=True,
+                                              prod_name=chosen.title(), g=0.5)
+            st.plotly_chart(comp_bar_chart)
                 
             # Download image as PNG
             st.download_button(label='Download bar chart as PNG',
-                               data=bar_chart.to_image(format='png', scale=3),
+                               data=comp_bar_chart.to_image(
+                                   format='png', scale=3),
                                file_name='emissions_comparison.png',
-                               mime='image/png', key=2)
+                               mime='image/png', key='comp_bar')
 
         #### DOWNLOAD DATA ####
         if st.checkbox('Download files'):
