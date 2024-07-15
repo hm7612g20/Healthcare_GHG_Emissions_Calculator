@@ -85,6 +85,20 @@ def read_emissions():
 
     return emissions
 
+@st.cache_data(show_spinner=False, ttl='1d')
+def read_open_source_emissions():
+    '''Reads inventory of products and their emissions into a pd.DataFrame.'''
+    sh, spread = read_gsheets('open_source_emissions')
+
+    if sh is not None:
+        worksheet = sh.worksheet('open_emissions')
+        emissions = pd.DataFrame(worksheet.get_all_records())
+    else:
+        st.error('No emissions file found.')
+        emissions = None
+
+    return emissions
+
 def read_emissions_local():
     '''Reads inventory of products and their emissions into a pd.DataFrame.'''
     # Emissions data filepath
@@ -117,10 +131,10 @@ def read_factors():
         Contains component name, year and location corresponding to carbon
         factor in kg CO2e and carbon content.
     '''
-    sh, spread = read_gsheets('factors')
+    sh, spread = read_gsheets('open_source_factors')
 
     if sh is not None:
-        worksheet = sh.worksheet('factors.csv')
+        worksheet = sh.worksheet('open_factors')
         factors = pd.DataFrame(worksheet.get_all_records())
     else:
         st.error('No factors file found.')
@@ -170,10 +184,10 @@ def read_factors_inv():
         Contains component name, year and location corresponding to carbon
         factor in kg CO2e and carbon content.
     '''
-    sh, spread = read_gsheets('factors')
+    sh, spread = read_gsheets('open_source_factors')
 
     if sh is not None:
-        worksheet = sh.worksheet('factors.csv')
+        worksheet = sh.worksheet('open_factors')
         factors = pd.DataFrame(worksheet.get_all_records())
         # Sets multi-index and sorts
         factors = factors.set_index(['component', 'loc', 'year'])

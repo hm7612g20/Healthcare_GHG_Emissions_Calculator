@@ -616,6 +616,8 @@ with st.spinner('Loading data...'):
     # Inventory file
     product_emissions = read_data.read_emissions()
     check_data(product_emissions)
+    open_emissions = read_data.read_open_source_emissions()
+    check_data(open_emissions)
     current_prod = product_emissions['product'].to_list()
 
 
@@ -750,6 +752,15 @@ chosen = st.selectbox('Select required product if available',
 felixstowe_ind = uk_cities_list.index('Felixstowe')
 dest_city = st.selectbox(f'Select approximate destination for product',
                          uk_cities_list, index=felixstowe_ind).lower()
+
+#### CHOOSE DATABASE ####
+# Changes which data is used depending on user choice
+open = st.checkbox(f'''Use emissions calculated with open-source emissions
+                       factors''')
+if open:
+    st.markdown(f'''*Recommended if changing product information so values
+                are calculated using the same emissions factors.*''')
+    product_emissions = open_emissions.copy(deep=True)
 
 #### SETS UP VARIABLES ####
 # Holds product info

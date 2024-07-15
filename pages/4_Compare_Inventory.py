@@ -222,6 +222,8 @@ with st.spinner('Loading data...'):
     
     emissions = read_data.read_emissions()
     check_data(emissions)
+    open_emissions = read_data.read_open_source_emissions()
+    check_data(open_emissions)
     
     factors = read_data.read_factors_inv() # Reads in factors file
     check_data(factors)
@@ -281,6 +283,15 @@ if st.checkbox('Upload own emissions factors file'):
         factors = pd.concat([own_factors_df, factors])
     elif own_factors_file is not None:
         factors = own_factors_df
+
+#### CHOOSE DATABASE ####
+# Changes which data is used depending on user choice
+open = st.checkbox(f'''Use emissions calculated with open-source emissions
+                       factors''')
+if open:
+    st.markdown(f'''*Recommended if changing product information so values
+                are calculated using the same emissions factors.*''')
+    emissions = open_emissions.copy(deep=True)
 
 ##### SELECT PRODUCTS TO COMPARE #####
 current_prods = products['product'].to_list()
@@ -460,7 +471,9 @@ st.session_state.changed_info = changed
 
 
 #### PERFORM CALCULATIONS ####
-if st.button('Calculate Emissions'): # If clicked, performs calculation
+# If clicked, performs calculation
+perform_calc = st.button('Calculate Emissions')
+if perform_calc and len(original) > 0:
     with st.spinner('Running Calculations...'):
         # Manufacturing emissions
         make, total_make = calc.manufacture_calc(changed, factors,
@@ -510,6 +523,8 @@ if st.button('Calculate Emissions'): # If clicked, performs calculation
 
     st.success(f'**Done!**')
     st.session_state.calculation = results
+elif perform_calc and len(original) == 0:
+    st.markdown(f'*Please select products first.*')
 
 #### PLOT AND DISPLAY RESULTS ####
 # Plots results if required and prints dataframe of results

@@ -525,6 +525,8 @@ with st.spinner('Loading data...'):
     # Inventory file
     product_emissions = read_data.read_emissions()
     check_data(product_emissions)
+    open_emissions = read_data.read_open_source_emissions()
+    check_data(open_emissions)
 
 # Joins with current database if required
 if join_files:
@@ -547,6 +549,12 @@ process_name = st.text_input(f'Enter name of process')
 felixstowe_ind = uk_cities_list.index('Felixstowe')
 dest_city = st.selectbox(f'Select approximate destination for product',
                          uk_cities_list, index=felixstowe_ind).lower()
+
+# Changes which data is used depending on user choice
+open = st.checkbox(f'''Use emissions calculated with open-source emissions
+                       factors''')
+if open:
+    product_emissions = open_emissions.copy(deep=True)
 
 # Selects any number of products from the current inventory
 chosen = st.multiselect('Select products in process', current_prod)
