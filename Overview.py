@@ -29,7 +29,7 @@ st.set_page_config(
 
 #### MAIN ####
 # Page title
-st.title(f'Healthcare Greenhouse Gas Emissions Calculator')
+st.title(f'Healthcare Greenhouse Gas Emissions Calculator and Database')
 
 intro_file = 'resources/overview.md'
 # Show introductory markdown
