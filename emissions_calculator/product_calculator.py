@@ -21,10 +21,11 @@ import streamlit as st
 #### READ STORED DATA ####
 def get_filepath(filename):
     '''Returns filepath in package given filename.'''
-    filepath = pkg_resources.resource_filename('emissions_calculator',
-                                               filename)
-    
+    filepath = pkg_resources.resource_filename(
+        'emissions_calculator', filename)
+
     return filepath
+
 
 @st.cache_data(show_spinner=False)
 def read_countries_continents():
@@ -37,7 +38,8 @@ def read_countries_continents():
     else:
         st.error('No country file found.')
         rer = None
-        
+
+    # Creates list of all other countries
     country_filepath = get_filepath(f'data/countries_other.csv')
     if os.path.isfile(country_filepath):
         row_df = pd.read_csv(country_filepath)
@@ -79,12 +81,11 @@ def find_closest_year(data, year, need_cc=False):
         year = int(year)
         yr = int(yr)
         diff = abs(yr - year)
-        # Finds the smallest difference
-        if diff < smallest:
+        if diff < smallest:  # Finds the smallest difference
             if closest_yr == 1000:
                 smallest = diff
                 closest_yr = yr
-            else:
+            else:  # Only extracts up to and including year of manufacture
                 if yr <= year:
                     smallest = diff
                     closest_yr = yr
@@ -98,6 +99,7 @@ def find_closest_year(data, year, need_cc=False):
         val = float(best['factor_kgCO2eq_unit'].to_list()[0])
 
     return val
+
 
 def extract_best_factor(factors, comp, loc, year, need_cc, country,
                         searched_all):
@@ -125,7 +127,7 @@ def extract_best_factor(factors, comp, loc, year, need_cc, country,
         searches based on whether it is made in Europe or the rest of the
         world so tries again. Then it tries world. If cannot find information,
         it prints out an error message.
-    
+
     Returns:
     --------
     fact: float or None
@@ -134,37 +136,32 @@ def extract_best_factor(factors, comp, loc, year, need_cc, country,
     found: bool
         If required emissions factor or carbon content was found.
     '''
-    # Whether to extract carbon content or emissions factor
-    if need_cc:
+    if need_cc:  # Whether to extract carbon content or emissions factor
         fact_name = 'carbon_content'
     else:
         fact_name = 'factor_kgCO2eq_unit'
-                
-    found = False # Used to check if relevant information found
-    
-    try: # Extracts factor if component in factors dataframe given the
-         # exact year and location
+
+    found = False  # Used to check if relevant information found
+
+    try:  # Extracts factor if comp in factors df given exact year and loc
         fact_df = factors.loc[(comp, loc, year)][fact_name]
         try:
             fact = fact_df.to_list()[0]
         except AttributeError:
             fact = fact_df
         found = True
-    # If exact data not listed in dataframe, stops crash
-    except KeyError:
-        # Extracts part of dataframe with same component and location
-        # if available
-        fact_df = factors.loc[(factors.index.get_level_values('component') \
-                               == comp) & (factors.index.\
+    except KeyError:  # If exact data not listed in dataframe, stops crash
+        # Extracts part of df with same component and loc if available
+        fact_df = factors.loc[(factors.index.get_level_values('component')
+                               == comp) & (factors.index.
                                            get_level_values('loc') == loc)]
-            
+
         # If not exact year listed, finds closest given years available
         if len(fact_df) > 0:
             fact_df.index = fact_df.index.get_level_values('year')
             fact = find_closest_year(fact_df, year, need_cc=need_cc)
             found = True
-        # Returns None if factor not found given information
-        else:
+        else:  # Returns None if factor not found given information
             fact = None
             # Prints out error message if location not available
             if searched_all:
@@ -179,6 +176,7 @@ def extract_best_factor(factors, comp, loc, year, need_cc, country,
                              {region.title()} or World. 0.0 will be used.''')
 
     return fact, found
+
 
 def extract_best_factor_ex(additional_factors, name, unit, year):
     '''
@@ -195,7 +193,7 @@ def extract_best_factor_ex(additional_factors, name, unit, year):
         Unit to which factor corresponds.
     year: str
         Year to use for factor.
-    
+
     Returns:
     --------
     fact: float or None
@@ -204,12 +202,11 @@ def extract_best_factor_ex(additional_factors, name, unit, year):
     found: bool
         If required emissions factor or carbon content was found.
     '''
-    # Uses closest year in file if file not available
-    try:
+    try:  # Uses closest year in file if file not available
         fact = additional_factors.loc[(name, unit,
                                        year)]['factor_kgCO2eq_unit']
-    except KeyError:
-        fact_df = additional_factors.loc[(additional_factors.index.\
+    except KeyError:  # Uses closest year in file if exact not available
+        fact_df = additional_factors.loc[(additional_factors.index.
                                           get_level_values('name') == name)]
         fact_df.index = fact_df.index.get_level_values('year')
         fact = find_closest_year(fact_df, year)
@@ -226,7 +223,7 @@ def manufacture_calc(product, factors, no_comp, dest_city):
     Parameters:
     -----------
     product: pd.Series
-        Contains product information - made up of components, mass, where they 
+        Contains product information - made up of components, mass, where they
         are made and where they are transported to, reprocessing if required
         and disposal information.
     factors: pd.DataFrame
@@ -250,24 +247,23 @@ def manufacture_calc(product, factors, no_comp, dest_city):
 
     # Calculates emissions corresponding to making specific products
     manu_emissions = []
-    
-    for i in range(no_comp): # Loops through components of product
-        comp = product['component_' + str(i+1)] # Finds name of component
-        # Finds year and location of production
-        year = product['manu_year_' + str(i+1)]
-        manu_loc = product['manu_loc_' + str(i+1)]
+
+    for i in range(no_comp):  # Loops through components of product
+        comp = product['component_' + str(i+1)]  # Name of component
+        year = product['manu_year_' + str(i+1)]  # Year of manufacture
+        manu_loc = str(product['manu_loc_' + str(i+1)])  # Loc of manufacture
 
         need_cc = False
-        
-        if manu_loc == '0':
+
+        if manu_loc == '0':  # Assumes made in destination city
             manu_loc = dest_city + '(united kingdom)'
+        # Finds country and city where component made
         loc = manu_loc[manu_loc.find('(')+1:manu_loc.find(')')]
         country = manu_loc[manu_loc.find('(')+1:manu_loc.find(')')]
 
         # Tries to find the best factor for provided information
-        fact, found = extract_best_factor(factors, comp, loc, year,
-                                          need_cc, country,
-                                          searched_all=False)
+        fact, found = extract_best_factor(
+            factors, comp, loc, year, need_cc, country, searched_all=False)
 
         if fact is None:
             # If not found, location may not be listed in file but may be able
@@ -280,28 +276,27 @@ def manufacture_calc(product, factors, no_comp, dest_city):
                 st.error(f'Error: **{loc.capitalize()}** not a valid '
                          f'country.')
                 break
-            fact, found = extract_best_factor(factors, comp, loc, year,
-                                              need_cc, country,
-                                              searched_all=False)
+            fact, found = extract_best_factor(
+                factors, comp, loc, year, need_cc, country,
+                searched_all=False)
 
             if fact is None:
                 # If still not found, tries world
                 loc = 'world'
-                fact, found = extract_best_factor(factors, comp, loc,
-                                                  year, need_cc, country,
-                                                  searched_all=True)
+                fact, found = extract_best_factor(
+                    factors, comp, loc, year, need_cc, country,
+                    searched_all=True)
 
-        # Stops calculation if relevant factor not found in file
-        if not found:
+        if not found:  # Stops calculation if relevant factor not found
             break
 
         # Finds mass of material
-        mass = product['mass_kg_' + str(i+1)] # Finds mass of material
-        no_uses = product['no_uses_' + str(i+1)] # Finds number of uses
+        mass = product['mass_kg_' + str(i+1)]  # Mass of material
+        no_uses = product['no_uses_' + str(i+1)]  # Number of uses
 
         # Per use emission = factor x (mass / no. uses)
         em = fact * (float(mass) / float(no_uses))
-    
+
         # Adds emissions to list for specific item
         manu_emissions.append(em)
 
@@ -313,25 +308,21 @@ def manufacture_calc(product, factors, no_comp, dest_city):
 #### TRVAEL EMISSIONS CALCULATION ####
 def read_travel_fact(additional_factors, year):
     '''Reads travel emissions factors from file.'''
-    unit = 'km'
-    land_fact = extract_best_factor_ex(additional_factors,
-                                       'hgv transport',
-                                       unit, year)
-    wtt_land_fact = extract_best_factor_ex(additional_factors,
-                                           'hgv transport wtt',
-                                            unit, year)
-    sea_fact = extract_best_factor_ex(additional_factors,
-                                      'container ship transport',
-                                      unit, year)
-    wtt_sea_fact = extract_best_factor_ex(additional_factors,
-                                          'container ship transport wtt',
-                                          unit, year)
+    land_fact = extract_best_factor_ex(
+        additional_factors, 'hgv transport', 'km', year)
+    wtt_land_fact = extract_best_factor_ex(
+        additional_factors, 'hgv transport wtt', 'km', year)
+    sea_fact = extract_best_factor_ex(
+        additional_factors, 'container ship transport', 'km', year)
+    wtt_sea_fact = extract_best_factor_ex(
+        additional_factors, 'container ship transport wtt', 'km', year)
 
     # Calculates total factor for land and sea travel
     land_travel_fact = land_fact + wtt_land_fact
     sea_travel_fact = sea_fact + wtt_sea_fact
 
     return land_travel_fact, sea_travel_fact
+
 
 def calc_sea_distance(sea_travel_dist, start_port, end_port):
     '''
@@ -352,19 +343,15 @@ def calc_sea_distance(sea_travel_dist, start_port, end_port):
     sea_dist_km: float
         Distance travelled in km.
     '''
-    try:
-        # Extracts distance travelled if in dataframe
-        #sea_dist_df = sea_travel_dist.at[(start_port, end_port),
-        #                                 'distance_km']
+    try:  # Extracts distance travelled if in dataframe
         sea_dist_df = sea_travel_dist.loc[(start_port, end_port),
                                           'distance_km']
         try:
             sea_dist_km = sea_dist_df.to_list()[0]
         except AttributeError:
             sea_dist_km = sea_dist_df
-    except KeyError:
+    except KeyError:  # If not in df, not in travel file so value calculated
         try:
-            # If not in data frame, calculate value using Nominatim
             # Uses GeoPy to calculate sea travel distances
             loc = Nominatim(user_agent='Geopy_Library')
             start_loc = loc.geocode(start_port)
@@ -382,6 +369,7 @@ def calc_sea_distance(sea_travel_dist, start_port, end_port):
 
     return sea_dist_km
 
+
 def calc_travel_emissions(dist_km, no_uses, mass, travel_fact):
     '''
     Calculates emissions for section of journey to end destination.
@@ -391,7 +379,7 @@ def calc_travel_emissions(dist_km, no_uses, mass, travel_fact):
     Parameters:
     -----------
     dist_km: float
-        Distance travelled in km
+        Distance travelled in km.
     no_uses: int
         Number of uses of component.
     mass: float
@@ -401,14 +389,15 @@ def calc_travel_emissions(dist_km, no_uses, mass, travel_fact):
 
     Returns:
     --------
-    ghg_em_pu: float
+    ghg_em: float
         Greenhouse gas emissions per use for that journey if available.
     '''
-    # Calculate travel emissions
-    ghg_em = (mass * dist_km * travel_fact) / 1000 # Factor is in tonne km
-    ghg_em_pu = ghg_em / no_uses
-            
-    return ghg_em_pu
+    # Travel emissions = mass * km * (kg CO2 per km) / no. uses
+    # /1000 as factor is in tonne km
+    ghg_em = (mass * dist_km * (travel_fact / 1000)) / no_uses
+
+    return ghg_em
+
 
 def travel_calc(product, no_comp, additional_factors):
     '''
@@ -419,9 +408,9 @@ def travel_calc(product, no_comp, additional_factors):
     Parameters:
     -----------
     product: pd.Series
-        Contains product information - made up of components, mass, where they 
-        and are made and where they are transported to, reprocessing if required
-        disposal information.
+        Contains product information - made up of components, mass, where they
+        and are made and where they are transported to, reprocessing if
+        required disposal information.
     no_comp: int
         Maximum number of components contained in the products file.
     additional_factors: pd.DataFrame
@@ -437,77 +426,72 @@ def travel_calc(product, no_comp, additional_factors):
     '''
     # Calculates emissions corresponding to travel
     travel_emissions = []
-    
-    for i in range(no_comp): # Loops through components
+
+    for i in range(no_comp):  # Loops through components
         travel_em = 0.0
 
-        start = product['manu_loc_' + str(i+1)] # Start at manufacture loc
-    
-        if start != '0' and start != None: # Stops calc if process
-            comp = product['component_' + str(i+1)] # Finds name of component
-            mass = product['mass_kg_' + str(i+1)] # Mass of component
-            no_uses = product['no_uses_' + str(i+1)] # Number of uses
-            year = product['manu_year_' + str(i+1)] # Year of manufacture
+        start = product['manu_loc_' + str(i+1)]  # Start at manufacture loc
+
+        if start != '0' and start is not None:  # Stops calc if process
+            comp = product['component_' + str(i+1)]  # Name of component
+            mass = product['mass_kg_' + str(i+1)]  # Mass of component
+            no_uses = product['no_uses_' + str(i+1)]  # Number of uses
+            year = product['manu_year_' + str(i+1)]  # Year of manufacture
 
             land_travel_fact, \
                 sea_travel_fact = read_travel_fact(additional_factors, year)
 
-            land_dist_km = product['land_dist_' + str(i+1)] # Land distance
-            sea_dist_km = product['sea_dist_' + str(i+1)] # Sea distance
-    
+            land_dist_km = product['land_dist_' + str(i+1)]  # Land distance
+            sea_dist_km = product['sea_dist_' + str(i+1)]  # Sea distance
+
             # Emissions from land travel
             if land_dist_km > 0.0:
-                ghg_em = calc_travel_emissions(land_dist_km, no_uses,
-                                               mass, land_travel_fact)
+                ghg_em = calc_travel_emissions(
+                    land_dist_km, no_uses, mass, land_travel_fact)
                 travel_em += ghg_em
-    
+
             # Emissions from sea travel
             if sea_dist_km > 0.0:
-                ghg_em = calc_travel_emissions(sea_dist_km, no_uses,
-                                               mass, sea_travel_fact)
+                ghg_em = calc_travel_emissions(
+                    sea_dist_km, no_uses, mass, sea_travel_fact)
                 travel_em += ghg_em
-    
-        # Adds emissions to list for specific 
+
+        # Adds emissions to list for specific comp
         travel_emissions.append(travel_em)
-    
-    total_travel_emissions = sum(travel_emissions)
+
+    total_travel_emissions = sum(travel_emissions)  # Finds total
 
     return travel_emissions, total_travel_emissions
 
 
 #### USE EMISSIONS CALCULATION ####
 def read_use_fact(additional_factors, year):
-    '''Reads electricity/water/gas emissions factors from file.'''    
-    water_unit = 'm3'
-    wt_fact = extract_best_factor_ex(additional_factors,
-                                     'water treatment',
-                                     water_unit, year)
-    ws_fact = extract_best_factor_ex(additional_factors,
-                                     'water supply',
-                                      water_unit, year)
+    '''Reads electricity/water/gas emissions factors from file.'''
+    wt_fact = extract_best_factor_ex(
+        additional_factors, 'water treatment', 'm3', year)
+    ws_fact = extract_best_factor_ex(
+        additional_factors, 'water supply', 'm3', year)
 
-    elec_unit = 'kwh'
-    eg_fact = extract_best_factor_ex(additional_factors,
-                                     'electricity generation',
-                                     elec_unit, year)
-    etd_fact = extract_best_factor_ex(additional_factors,
-                                      'electricity t&d',
-                                      elec_unit, year)
-    eg_wtt_fact = extract_best_factor_ex(additional_factors,
-                                         'electricity generation wtt',
-                                         elec_unit, year)
-    etd_wtt_fact = extract_best_factor_ex(additional_factors,
-                                          'electricity t&d wtt',
-                                          elec_unit, year)
+    eg_fact = extract_best_factor_ex(
+        additional_factors, 'electricity generation', 'kwh', year)
+    etd_fact = extract_best_factor_ex(
+        additional_factors, 'electricity t&d', 'kwh', year)
+    eg_wtt_fact = extract_best_factor_ex(
+        additional_factors, 'electricity generation wtt', 'kwh', year)
+    etd_wtt_fact = extract_best_factor_ex(
+        additional_factors, 'electricity t&d wtt', 'kwh', year)
 
-    gas_unit = 'm3'
-    gas_fact = extract_best_factor_ex(additional_factors,
-                                      'gas', gas_unit, year)
-    gas_wtt_fact = extract_best_factor_ex(additional_factors,
-                                          'gas wtt', gas_unit, year)
+    gas_fact = extract_best_factor_ex(
+        additional_factors, 'gas', 'm3', year)
+    gas_wtt_fact = extract_best_factor_ex(
+        additional_factors, 'gas wtt', 'm3', year)
 
-    return (wt_fact, ws_fact, eg_fact, etd_fact, eg_wtt_fact, etd_wtt_fact,
-            gas_fact, gas_wtt_fact)
+    water_factor = wt_fact + ws_fact
+    elec_factor = eg_fact + etd_fact + eg_wtt_fact + etd_wtt_fact
+    gas_factor = gas_fact + gas_wtt_fact
+
+    return water_factor, elec_factor, gas_factor
+
 
 def use_calc(additional_factors, year, water_vol_per_use=None,
              power_rating=None, time_per_use=None, gas_per_use=None):
@@ -543,25 +527,20 @@ def use_calc(additional_factors, year, water_vol_per_use=None,
     # Water = treatment and supply
     # Electricity = generation, transmission & distribution (incl. WTT)
     # Gas = gas as fuel (incl. WTT)
-    (wt_fact, ws_fact, eg_fact, etd_fact, eg_wtt_fact, etd_wtt_fact,
-     gas_fact, gas_wtt_fact) = read_use_fact(additional_factors, year)
+    water_factor, elec_factor, gas_factor = read_use_fact(
+        additional_factors, year)
 
-    use_emissions = 0
+    use_emissions = 0.0
     # Calculates emissions from water use
     if water_vol_per_use is not None:
-        use_emissions += wt_fact * (water_vol_per_use / 1000)
-        use_emissions += ws_fact * (water_vol_per_use / 1000)
+        use_emissions += water_factor * (water_vol_per_use / 1000)
     # Calculates emissions from electricity use
     elif power_rating is not None and time_per_use is not None:
         kwh = (power_rating * time_per_use) / 1000
-        use_emissions += eg_fact * kwh
-        use_emissions += etd_fact * kwh
-        use_emissions += eg_wtt_fact * kwh
-        use_emissions += etd_wtt_fact * kwh
+        use_emissions += elec_factor * kwh
     # Calculates emissions from gas use
     elif gas_per_use is not None:
-        use_emissions += gas_fact * gas_per_use
-        use_emissions += gas_wtt_fact * gas_per_use
+        use_emissions += gas_factor * gas_per_use
 
     return use_emissions
 
@@ -592,29 +571,25 @@ def decon_emission_calc(name, decon_units, additional_factors, product_year):
     # Water = treatment and supply
     # Electricity = generation, transmission & distribution (incl. WTT)
     # Gas = gas as fuel (incl. WTT)
-    (wt_fact, ws_fact, eg_fact, etd_fact, eg_wtt_fact, etd_wtt_fact,
-     gas_fact, gas_wtt_fact) = read_use_fact(additional_factors,
-                                             product_year)
-    
-    water_kg_co2e = (wt_fact + ws_fact) * \
-                    0.001 * decon_units[name + ' water']
+    water_factor, elec_factor, gas_factor = read_use_fact(
+        additional_factors, product_year)
 
-    elec_kg_co2e = (eg_fact + etd_fact + eg_wtt_fact + etd_wtt_fact) * \
-                   decon_units[name + ' electricity']
-
-    gas_kg_co2e = (gas_fact + gas_wtt_fact) * \
-                  decon_units[name + ' gas']
+    water_kg_co2e = water_factor * 0.001 * decon_units[name + ' water']
+    elec_kg_co2e = elec_factor * decon_units[name + ' electricity']
+    gas_kg_co2e = gas_factor * decon_units[name + ' gas']
 
     decon_fact = water_kg_co2e + elec_kg_co2e + gas_kg_co2e
 
     return decon_fact
 
+
 def read_laundry_fact(additional_factors, year):
     '''Reads laundry emissions factors from file.'''
-    laundry_fact = extract_best_factor_ex(additional_factors,
-                                          'laundry', 'kg', year)
+    laundry_fact = extract_best_factor_ex(
+        additional_factors, 'laundry', 'kg', year)
 
     return laundry_fact
+
 
 def reprocessing_calc(product, no_comp, laundry_fact, decon_fact):
     '''
@@ -623,7 +598,7 @@ def reprocessing_calc(product, no_comp, laundry_fact, decon_fact):
     Parameters:
     -----------
     product: pd.Series
-        Contains product information - made up of components, mass, where they 
+        Contains product information - made up of components, mass, where they
         are made and where they are transported to, reprocessing if required
         and disposal information.
     no_comp: int
@@ -642,23 +617,24 @@ def reprocessing_calc(product, no_comp, laundry_fact, decon_fact):
     reprocess_emissions = 0.0
     autoclave_req = False
     found_percent_fill = False
-        
-    for i in range(no_comp): # Loops through components
-        comp = product['component_' + str(i+1)] # Finds name of component
-        mass = product['mass_kg_' + str(i+1)] # Finds mass of product/process
-        # Finds reprocessing type if applicable
-        repro = product['reprocessing_' + str(i+1)]
-            
+
+    for i in range(no_comp):  # Loops through components
+        comp = product['component_' + str(i+1)]  # Name of component
+        mass = product['mass_kg_' + str(i+1)]  # Mass of product/process
+        repro = product['reprocessing_' + str(i+1)]  # Repro type
+
         if repro is not None:
             if repro == 'laundry':
                 reprocess_emissions += mass * laundry_fact
             elif 'hsdu' in repro:
                 if not found_percent_fill:
-                    percent_fill = float(repro[repro.find('(')+1:repro.find(')')])
+                    # Extracts % fill from repro info
+                    percent_fill = float(repro[repro.find('(')+1:
+                                         repro.find(')')])
                     found_percent_fill = True
                 autoclave_req = True
 
-    if autoclave_req:
+    if autoclave_req:  # Calculates emissions from HSDU
         reprocess_emissions += decon_fact * (percent_fill / 100)
 
     return reprocess_emissions
@@ -667,18 +643,19 @@ def reprocessing_calc(product, no_comp, laundry_fact, decon_fact):
 #### DISPOSAL EMISSIONS CALCULATION ####
 def read_landfill_fact(additional_factors, year):
     '''Reads landfill emissions factors from file.'''
-    landfill_fact = extract_best_factor_ex(additional_factors,
-                                           'landfill', 'kg', year)
+    landfill_fact = extract_best_factor_ex(
+        additional_factors, 'landfill', 'kg', year)
 
     return landfill_fact
 
+
 def read_disposal_fact(additional_factors, year):
     '''Reads disposal travel emissions factors from file.'''
-    disposal_fact = extract_best_factor_ex(additional_factors,
-                                           'disposal transport',
-                                           'km', year)
+    disposal_fact = extract_best_factor_ex(
+        additional_factors, 'disposal transport', 'km', year)
 
     return disposal_fact
+
 
 def disposal_calc(product, factors, no_comp, landfill_fact, transport_fact,
                   year):
@@ -689,7 +666,7 @@ def disposal_calc(product, factors, no_comp, landfill_fact, transport_fact,
     Parameters:
     -----------
     product: pd.Series
-        Contains product information - made up of components, mass, where they 
+        Contains product information - made up of components, mass, where they
         are made and where they are transported to, reprocessing if required
         and disposal information.
     factors: pd.DataFrame
@@ -720,6 +697,7 @@ def disposal_calc(product, factors, no_comp, landfill_fact, transport_fact,
         Calculated as sum of incineration emissions, recycling emissions,
         landfill emissions and biogenic component.
     '''
+    # Creates list of all countries in Europe so correct factor used
     rer_countries, row_countries = read_countries_continents()
 
     bio = 0.0
@@ -727,14 +705,12 @@ def disposal_calc(product, factors, no_comp, landfill_fact, transport_fact,
     mass_for_incinerate = 0.0
     mass_for_recycle = 0.0
     mass_for_landfill = 0.0
-    
+
     # Calculates emissions corresponding to disposing of specific products
-    for i in range(no_comp): # Loops through components
-        comp = str(product['component_' + str(i+1)]) # Finds name of component
-    
-        # Finds year and location of production
-        year = product['manu_year_' + str(i+1)]
-        manu_loc = str(product['manu_loc_' + str(i+1)])
+    for i in range(no_comp):  # Loops through components
+        comp = str(product['component_' + str(i+1)])  # Name of component
+        year = product['manu_year_' + str(i+1)]  # Year of manufacture
+        manu_loc = str(product['manu_loc_' + str(i+1)])  # Loc of manufacture
 
         # If incinerated or not - 1 if it is or 0 if not
         incinerate = float(product['incinerate_' + str(i+1)])
@@ -742,7 +718,7 @@ def disposal_calc(product, factors, no_comp, landfill_fact, transport_fact,
         recycle = float(product['recycle_' + str(i+1)])
         # If landfill disposal or not - 1 if it is, 0 if not
         landfill = float(product['landfill_' + str(i+1)])
-    
+
         if (incinerate + recycle + landfill) > 1:
             st.error(f'Error: {comp} disposed of in multiple ways.')
             break
@@ -752,13 +728,15 @@ def disposal_calc(product, factors, no_comp, landfill_fact, transport_fact,
             break
 
         if comp != '0' and manu_loc != '0':
+            # Extracts name of location and country
             loc = manu_loc[manu_loc.find('(')+1:manu_loc.find(')')]
             country = manu_loc[manu_loc.find('(')+1:manu_loc.find(')')]
+
             # Tries to find the best carbon content for provided information
             need_cc = True
             cc, found = extract_best_factor(factors, comp, loc, year, need_cc,
                                             country, searched_all=False)
-    
+
             if cc is None:
                 # If not found, location not be in file but may be able
                 # to change specific country to Europe or Rest of World
@@ -769,70 +747,69 @@ def disposal_calc(product, factors, no_comp, landfill_fact, transport_fact,
                 else:
                     st.error(f'Error: {loc} not a valid country.')
                     break
-                cc, found = extract_best_factor(factors, comp, loc, year,
-                                                need_cc, country,
-                                                searched_all=False)
+                cc, found = extract_best_factor(
+                    factors, comp, loc, year, need_cc, country,
+                    searched_all=False)
 
                 if cc is None:
                     # If still not found, tries world
                     loc = 'world'
-                    cc, found = extract_best_factor(factors, comp, loc,
-                                                    year, need_cc, country,
-                                                    searched_all=True)
-        
-        # Stops calculation if no component listed
-        else:
+                    cc, found = extract_best_factor(
+                        factors, comp, loc, year, need_cc, country,
+                        searched_all=True)
+
+        else:  # Stops calculation if no component listed
             break
-        
-        # Stops calculation if relevant factor not found in file
-        if not found:
+
+        if not found:  # Stops calculation if relevant factor not found
             break
-    
-        mass = product['mass_kg_' + str(i+1)] # Mass of product/process
-        no_uses = product['no_uses_' + str(i+1)] # Number of uses
-    
+
+        mass = product['mass_kg_' + str(i+1)]  # Mass of product
+        no_uses = product['no_uses_' + str(i+1)]  # Number of uses
+
         # Per use mass = mass / number of uses
         pu_mass = float(mass) / float(no_uses)
-    
+
         # If biogenic component - 0 if not, 1 if it is
         is_biogen = product['biogenic_' + str(i+1)]
-    
+
         # Calculates biogenic = carbon content x per use mass x (if biogenic)
         bio += cc * is_biogen * pu_mass
-    
+
         # Calculates incineration carbon mass
         incinerate_c_mass += pu_mass * incinerate * cc
-    
+
         # Calculates mass for incineration
         mass_for_incinerate += pu_mass * incinerate
-    
+
         # Calculates recycling mass
         mass_for_recycle += pu_mass * recycle
-    
+
         # Calculates landfill mass
         mass_for_landfill += pu_mass * landfill
-    
-    # Calculates CO2e emissions from incineration
+
+    # Calculates CO2e emissions from incineration = CO2 generated
     # C Mass / C Mr = Mol * CO2 Mr = Mass CO2
     incinerate_em = (incinerate_c_mass / 12.01) * 44.01
-    # Calculates incineration transport emissions    
+    # Transport emissions = mass * transport factor
     incinerate_transport = mass_for_incinerate * transport_fact
     # Calculates total incineration emissions
     incinerate_emissions = incinerate_em + incinerate_transport
-    
+
     # Calculates total recycling emissions = transport emissions
+    # Transport emissions = mass * transport factor
     recycle_emissions = mass_for_recycle * transport_fact
-    
-    # Calculates emissions for travel to landfill
+
+    # Transport emissions = mass * transport factor
     landfill_transport = mass_for_landfill * transport_fact
-    # Calculates emissions in landfill
+    # Landfill emissions = mass * landfill emissions factor
     landfill_em = mass_for_landfill * landfill_fact
     # Calculates total landfill emissions
     landfill_emissions = landfill_transport + landfill_em
-    
-    # Calculates biogenic carbon
+
+    # Calculates biogenic carbon = contained carbon
     biogenic_carbon = (bio / 12.01) * 44.01
-    
+
     net_waste_emissions = incinerate_emissions + recycle_emissions + \
                           landfill_emissions - biogenic_carbon
 

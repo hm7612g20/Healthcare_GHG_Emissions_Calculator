@@ -18,19 +18,20 @@ from gspread_pandas import Spread, Client
 #### READ STORED DATA FUNCTIONS ####
 def get_filepath(filename):
     '''Returns filepath in package given filename.'''
-    filepath = pkg_resources.resource_filename('emissions_calculator',
-                                               filename)
-    
+    filepath = pkg_resources.resource_filename(
+        'emissions_calculator', filename)
+
     return filepath
+
 
 def read_gsheets(name):
     '''Reads data in from Google Sheets.'''
     scope = ['https://spreadsheets.google.com/feeds',
              'https://www.googleapis.com/auth/drive']
 
-    try:
+    try:  # Tries to connect using streamlit secrets
         credentials = service_account.Credentials.from_service_account_info(
-            st.secrets['gcp_service_account'], scopes = scope)
+            st.secrets['gcp_service_account'], scopes=scope)
         client = Client(scope=scope, creds=credentials)
         spread = Spread(name, client=client)
         sh = client.open(name)
@@ -56,6 +57,7 @@ def read_products():
 
     return products
 
+
 def read_products_local():
     '''Reads inventory of products into a pd.DataFrame.'''
     # Read in products data
@@ -71,6 +73,7 @@ def read_products_local():
 
     return products
 
+
 @st.cache_data(show_spinner=False, ttl='1d')
 def read_emissions():
     '''Reads inventory of products and their emissions into a pd.DataFrame.'''
@@ -85,19 +88,21 @@ def read_emissions():
 
     return emissions
 
+
 @st.cache_data(show_spinner=False, ttl='1d')
 def read_open_source_emissions():
     '''Reads inventory of products and their emissions into a pd.DataFrame.'''
     sh, spread = read_gsheets('open_source_emissions')
 
     if sh is not None:
-        worksheet = sh.worksheet('open_emissions')
+        worksheet = sh.worksheet('open_source_emissions')
         emissions = pd.DataFrame(worksheet.get_all_records())
     else:
         st.error('No emissions file found.')
         emissions = None
 
     return emissions
+
 
 def read_emissions_local():
     '''Reads inventory of products and their emissions into a pd.DataFrame.'''
@@ -118,23 +123,11 @@ def read_emissions_local():
 #### READ FACTORS ####
 @st.cache_data(show_spinner=False, ttl='1d')
 def read_factors():
-    '''
-    Reads factors file into a pd.DataFrame.
-
-    Parameters:
-    -----------
-    None.
-
-    Returns:
-    --------
-    factors: pd.DataFrame
-        Contains component name, year and location corresponding to carbon
-        factor in kg CO2e and carbon content.
-    '''
+    '''Reads factors file into a pd.DataFrame.'''
     sh, spread = read_gsheets('open_source_factors')
 
     if sh is not None:
-        worksheet = sh.worksheet('open_factors')
+        worksheet = sh.worksheet('open_source_factors')
         factors = pd.DataFrame(worksheet.get_all_records())
     else:
         st.error('No factors file found.')
@@ -142,20 +135,9 @@ def read_factors():
 
     return factors
 
+
 def read_factors_local():
-    '''
-    Reads factors file into a pd.DataFrame.
-
-    Parameters:
-    -----------
-    None.
-
-    Returns:
-    --------
-    factors: pd.DataFrame
-        Contains component name, year and location corresponding to carbon
-        factor in kg CO2e and carbon content.
-    '''
+    '''Reads factors file into a pd.DataFrame.'''
     # Factors data filepath
     factors_filepath = get_filepath(f'factors/factors.csv')
 
@@ -169,25 +151,14 @@ def read_factors_local():
 
     return factors
 
+
 @st.cache_data(show_spinner=False, ttl='1d')
 def read_factors_inv():
-    '''
-    Reads factors file into a pd.DataFrame for use in inventory calculator.
-
-    Parameters:
-    -----------
-    None.
-
-    Returns:
-    --------
-    factors: pd.DataFrame
-        Contains component name, year and location corresponding to carbon
-        factor in kg CO2e and carbon content.
-    '''
+    '''Reads factors file into a pd.DataFrame for use in inventory calc.'''
     sh, spread = read_gsheets('open_source_factors')
 
     if sh is not None:
-        worksheet = sh.worksheet('open_factors')
+        worksheet = sh.worksheet('open_source_factors')
         factors = pd.DataFrame(worksheet.get_all_records())
         # Sets multi-index and sorts
         factors = factors.set_index(['component', 'loc', 'year'])
@@ -198,20 +169,9 @@ def read_factors_inv():
 
     return factors
 
+
 def read_factors_inv_local():
-    '''
-    Reads factors file into a pd.DataFrame for use in inventory calculator.
-
-    Parameters:
-    -----------
-    None.
-
-    Returns:
-    --------
-    factors: pd.DataFrame
-        Contains component name, year and location corresponding to carbon
-        factor in kg CO2e and carbon content.
-    '''
+    '''Reads factors file into a pd.DataFrame for use in inventory calc.'''
     # Factors data filepath
     factors_filepath = get_filepath(f'factors/factors.csv')
 
@@ -256,6 +216,7 @@ def read_additional_factors():
 
     return factors
 
+
 def read_additional_factors_local():
     '''
     Reads factors file for laundry, disposal, transport, electricity, water
@@ -283,11 +244,12 @@ def read_additional_factors_local():
 
     return factors
 
+
 @st.cache_data(show_spinner=False, ttl='1d')
 def read_additional_factors_inv():
     '''
     Reads factors file for laundry, disposal, transport, electricity, water
-    and gas into a pd.DataFrame.
+    and gas into a pd.DataFrame for use in inventory calc.
 
     Parameters:
     -----------
@@ -312,10 +274,11 @@ def read_additional_factors_inv():
 
     return factors
 
+
 def read_additional_factors_inv_local():
     '''
     Reads factors file for laundry, disposal, transport, electricity, water
-    and gas into a pd.DataFrame.
+    and gas into a pd.DataFrame for use in inventory calc.
 
     Parameters:
     -----------
@@ -351,12 +314,12 @@ def read_travel_dist():
     if sh is not None:
         worksheet = sh.worksheet('land_travel_distance')
         land_travel_dist = pd.DataFrame(worksheet.get_all_records())
-        
+
         # Make all names lower case
         land_travel_dist['start_loc'] = land_travel_dist['start_loc'].str\
-                                        .lower()
+            .lower()
         land_travel_dist['end_loc'] = land_travel_dist['end_loc'].str\
-                                      .lower()
+            .lower()
         # Sets index as start and end location
         land_travel_dist = land_travel_dist.set_index(['start_loc',
                                                        'end_loc'])
@@ -372,7 +335,7 @@ def read_travel_dist():
 
         # Makes all names lower case
         sea_travel_dist['start_loc'] = sea_travel_dist['start_loc'].str\
-                                       .lower()
+            .lower()
         sea_travel_dist['end_loc'] = sea_travel_dist['end_loc'].str.lower()
         # Sets index as start and end location
         sea_travel_dist = sea_travel_dist.set_index(['start_loc',
@@ -383,6 +346,7 @@ def read_travel_dist():
         sea_travel_dist = None
 
     return land_travel_dist, sea_travel_dist
+
 
 def read_travel_dist_local():
     '''Reads list of land and sea travel distances into a DataFrame.'''
@@ -396,9 +360,9 @@ def read_travel_dist_local():
 
         # Make all names lower case
         land_travel_dist['start_loc'] = land_travel_dist['start_loc'].str\
-                                        .lower()
+            .lower()
         land_travel_dist['end_loc'] = land_travel_dist['end_loc'].str\
-                                      .lower()
+            .lower()
         # Sets index as start and end location
         land_travel_dist = land_travel_dist.set_index(['start_loc',
                                                        'end_loc'])
@@ -406,7 +370,7 @@ def read_travel_dist_local():
     else:
         st.error('No land travel distance file found.')
         land_travel_dist = None
-        
+
     # Sea travel distances filepath
     sea_filepath = get_filepath(f'data/sea_travel_distance.csv')
 
@@ -417,7 +381,7 @@ def read_travel_dist_local():
 
         # Makes all names lower case
         sea_travel_dist['start_loc'] = sea_travel_dist['start_loc'].str\
-                                       .lower()
+            .lower()
         sea_travel_dist['end_loc'] = sea_travel_dist['end_loc'].str.lower()
         # Sets index as start and end location
         sea_travel_dist = sea_travel_dist.set_index(['start_loc',
@@ -448,6 +412,29 @@ def read_processes():
 
     return processes
 
+
+@st.cache_data(show_spinner=False, ttl='1d')
+def read_decon_units_cloud():
+    '''Reads information on decontamination units into a dictionary.'''
+    sh, spread = read_gsheets('decon_units')
+    if sh is not None:
+        worksheet = sh.worksheet('decon_units')
+        decon_df = pd.DataFrame(worksheet.get_all_records())
+
+        decon_units = {}
+        for ind, row in decon_df.iterrows():
+            name = str(row['name'])
+            unit = row['value']
+            val = float(row['value'])
+            # Dictionary containing value
+            decon_units[name] = val
+    else:
+        st.error('No decontamination units file found.')
+        decon_units = None
+
+    return decon_units
+
+
 def read_decon_units():
     '''Reads information on decontamination units into a dictionary.'''
     filepath = get_filepath(f'data/decon_units.csv')
@@ -458,11 +445,11 @@ def read_decon_units():
             for ind, line in enumerate(f):
                 # Header is at index 0 so ignore
                 if ind > 0:
-                    l = line.rstrip('\n')
-                    d = l.split(',')
-                    d[2] = float(d[2])
+                    ln = line.rstrip('\n')
+                    wd = ln.split(',')
+                    wd[2] = float(wd[2])
                     # Dictionary containing value
-                    decon_units[d[0]] = d[2]
+                    decon_units[wd[0]] = wd[2]
     else:
         st.error('No decontamination units file found.')
         decon_units = None
@@ -490,6 +477,7 @@ def read_countries():
 
     return country
 
+
 @st.cache_data(show_spinner=False)
 def read_countries_continents():
     '''Reads countries in Europe and Rest of World into a list.'''
@@ -501,7 +489,7 @@ def read_countries_continents():
     else:
         st.error('No country file found.')
         rer = None
-        
+
     country_filepath = get_filepath(f'data/countries_other.csv')
     if os.path.isfile(country_filepath):
         row_df = pd.read_csv(country_filepath)
@@ -511,6 +499,7 @@ def read_countries_continents():
         row = None
 
     return rer, row
+
 
 @st.cache_data(show_spinner=False)
 def read_cities():
@@ -539,6 +528,7 @@ def read_cities():
         uk_cities_list = None
 
     return cities_list, uk_cities_list
+
 
 @st.cache_data(show_spinner=False)
 def read_ports():
