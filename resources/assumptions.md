@@ -1,0 +1,7 @@
+- Travel is split into stages:
+	- Manufacture location of components to port where components leaves country of manufacture (if applicable)
+	- Departure port to UK port (if applicable) or manufacture location to point in UK where it travels to end location for UK based product.
+	- Users can additionally add calculations of emissions corresponding to the travel between the point in UK where it dpearts from and the approximate end location of the product.
+	 - It is assumed that the product is made somewhere along this route and it does not need to be transported elsewhere for manufacture.
+- HSDU reprocessing is calculated using percentage filling of decontamination unit. It is assumed the autoclave is full to capacity based on this value.
+- Biogenic emissions are subtracted from other disposal emissions as this accounts for the CO$_{2}$ that was originally absorbed by plants during their growth to produce the component. Therefore, the emissions are considered to be part of the natural cycle and so do not contribute to increasing atmospheric CO$_{2}$ levels in the same way as fossil fuel emissions.
