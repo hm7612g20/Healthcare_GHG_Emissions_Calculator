@@ -28,8 +28,6 @@ st.set_page_config(
 
 
 #### MAIN ####
-# Page title
 st.title(f'References')
-
 file = 'resources/citation.md'
 st.markdown(read_file_contents(file))

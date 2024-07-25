@@ -141,15 +141,14 @@ def create_spec_bar_chart(open, eco, prod_name, w=800, h=600, g=0.3):
 
 
 #### MAIN ####
-# Removes whitespace from edge of page
-st.set_page_config(layout='wide')
+st.set_page_config(layout='wide')  # Removes whitespace from edge of page
 
-# Page title
-st.title('Comparison Emissions Plots')
+st.title('Comparison Emissions Plots')  # Page title
 st.markdown(f'''Compare GHG emissions for products contained in the database
-                calculated using EcoInvent data and open-source data.''')
+                calculated using EcoInvent (version 3.10) emissions factors
+                and freely available data.''')
 
-
+#### READ IN DATA ####
 with st.spinner('Loading data...'):
     # Reads in factors file
     factors = read_data.read_factors()
@@ -177,14 +176,15 @@ cat_list = emissions['category'].unique().tolist()
 cat_list = [c.title() for c in cat_list]
 
 #### SELECT PRODUCTS ####
-to_compare = st.multiselect(f'###### **Select products to compare**',
-                                current_prod, key=1)
-# Return to lower case so can access data in dataframe
-to_compare = [p.lower() for p in to_compare]
+st.divider()
+st.markdown('#### Compare Products')
+current_prod = [p.title() for p in current_prod]
+to_compare = st.selectbox(f'###### **Select product to compare**',
+                          current_prod, key=1).lower()
 
-open_chosen = open_emissions[open_emissions['product'].isin(to_compare)]\
+open_chosen = open_emissions[open_emissions['product'] == to_compare]\
     .copy(deep=True)
-chosen = emissions[emissions['product'].isin(to_compare)].copy(deep=True)
+chosen = emissions[emissions['product'] == to_compare].copy(deep=True)
 
 # Create comparison plots
 for ind, open_row in open_chosen.iterrows():
@@ -195,11 +195,14 @@ for ind, open_row in open_chosen.iterrows():
 
 
 #### SELECT BASED ON DATA ####
+st.divider()
+st.markdown('#### Investigate Database')
 num_to_plot = st.number_input('Number of products to plot', min_value=1,
                               max_value=len(emissions), value=10) 
 
 #### HIGHEST EMISSIONS ####
-st.markdown('**Highest Emissions in Open-Source Data:**')
+st.divider()
+st.markdown('#### Compare Highest Emissions in Database')
 num_start_highest = st.number_input('Number of product to begin plot at',
                                     min_value=0, max_value=len(emissions),
                                     value=0, key='high') 
@@ -216,7 +219,8 @@ highest_fig = create_bar_chart(open_emissions, exclude=num_start_highest,
 st.plotly_chart(highest_fig)
 
 #### LOWEST EMISSIONS ####
-st.markdown('**Lowest Emissions in Open-Source Data:**')
+st.divider()
+st.markdown('#### Compare Lowest Emissions in Database')
 num_start_lowest = st.number_input('Number of product to begin plot at',
                                    min_value=0, max_value=len(emissions),
                                    value=0, key='low')

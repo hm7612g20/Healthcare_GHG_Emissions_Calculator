@@ -28,9 +28,15 @@ st.set_page_config(
 
 
 #### MAIN ####
-# Page title
 st.title(f'Calculator Information')
 
-intro_file = 'resources/further_info.md'
-# Show explanatory markdown
-st.markdown(read_file_contents(intro_file))
+# Show explanatory markdowns
+st.markdown(read_file_contents('resources/further_info.md'))
+
+st.divider()
+st.markdown('#### Calculator Details')
+st.markdown(read_file_contents('resources/calc_details.md'))
+
+st.divider()
+st.markdown('#### Assumptions')
+st.markdown(read_file_contents('resources/assumptions.md'))
