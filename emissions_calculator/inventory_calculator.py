@@ -377,8 +377,8 @@ def calc_sea_distance(sea_travel_dist, start_port, end_port):
             sea_dist_km = route.properties['length']
         except (ValueError, AttributeError) as e:
             sea_dist_km = 0
-            st.error(f'''*Could not find ports: {start_port} and/or
-                         {end_port}.*''')
+            st.error(f'''Error: Could not find ports: {start_port.title()}
+                         and/or {end_port}.''')
 
     return sea_dist_km
 
@@ -426,8 +426,9 @@ def calc_travel_emissions(travel_dist, start, end, sea, no_uses, mass,
                 except AttributeError:
                     dist_km = dist_df
             except KeyError:  # If not in df, not in file so prevents error
-                st.error(f'''Journey from {start} to {end} not listed in file
-                             - product: {prod}.''')
+                st.error(f'''Error: Journey from {start.title()} to
+                             {end.title()} not listed in file - product:
+                             {prod.title()}.''')
                 dist_km = 0.0
 
         if no_uses == 0.0:

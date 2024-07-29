@@ -115,14 +115,14 @@ def download_example_file(key='products'):
                     populated and uploaded above.''')
 
     # Reads in example file
-    ex_df = pd.read_excel('resources/products_example.xlsx')
+    ex_df = pd.read_excel(f'resources/{key}_example.xlsx')
     ex = convert_df(ex_df)
 
     # Outputs download button
     st.download_button(
         label='Download empty file',
         data=ex,
-        file_name='products.csv',
+        file_name=f'{key}.csv',
         mime='text/csv',
         key=key
     )
@@ -360,6 +360,27 @@ if st.checkbox(f'''Select if you wish to upload your own emissions factors
         factors = pd.concat([own_factors_df, factors])
     elif own_factors_file is not None:
         factors = own_factors_df
+
+#### UPLOAD NEW LAND TRAVEL DISTANCE ####
+own_dist_file = None
+if st.checkbox(f'''Select if you are getting **Error: Journey not listed in
+                   file** to upload your own distances'''):
+    own_dist_file = st.file_uploader('Upload own land travel distance file',
+                                         type=['csv'])
+    with st.expander(f'''Click to view file requirements or to download
+                     empty example file'''):
+        download_example_file(key='distance')
+        st.markdown(read_file_contents('resources/own_distance.md'))
+
+    if own_dist_file is not None:  # Reads uploaded file into pd.DataFrame
+        own_dist_df = pd.read_csv(own_dist_file)
+        try:  # Sets file up in the same format
+            own_dist_df = own_dist_df.set_index(['start_loc', 'end_loc'])
+            own_dist_df = own_dist_df.sort_index()
+            land_travel_dist = pd.concat([land_travel_dist, own_dist_df])
+        except KeyError:  # Stops if wrong type of file used
+            st.error('Error: Incorrect file format.')
+            exit_program()
 
 st.divider()
 st.markdown('#### Select Required Information For Calculation')
