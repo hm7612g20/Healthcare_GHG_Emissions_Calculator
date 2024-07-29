@@ -261,6 +261,58 @@ if new_factors is not None:
             st.success('Done!')
 
 
+#### ADD TO LAND TRAVEL DISTANCES DATABASE ####
+st.divider()
+st.markdown('#### Add New Land Travel Distances')
+new_dist = st.file_uploader(f'Upload new land travel distances file.',
+                            type=['csv'])
+with st.expander(f'''Click to view file requirements or to download
+                     empty example file'''):
+    download_example_file(name='distance', key='ld')
+    st.markdown(read_file_contents('resources/own_distance.md'))
+
+if new_dist is not None:
+    new_dist_df = pd.read_csv(new_dist)
+    new_dist_df = new_dist_df.fillna(0)
+
+    if st.button('Click to update land travel distance database'):
+        with st.spinner('Updating...'):
+            done = False
+            try:
+                update_gsheets('land_travel_distance', new_dist_df)
+                done = True
+            except (TypeError) as e:
+                st.error('Error: Could not update')
+        if done:
+            st.success('Done!')
+
+
+#### ADD TO SEA TRAVEL DISTANCES DATABASE ####
+st.divider()
+st.markdown('#### Add New Sea Travel Distances')
+new_sea_dist = st.file_uploader(f'Upload new sea travel distances file.',
+                                type=['csv'])
+with st.expander(f'''Click to view file requirements or to download
+                     empty example file'''):
+    download_example_file(name='distance', key='sd')
+    st.markdown(read_file_contents('resources/own_distance.md'))
+
+if new_sea_dist is not None:
+    new_sea_dist_df = pd.read_csv(new_sea_dist)
+    new_sea_dist_df = new_sea_dist_df.fillna(0)
+
+    if st.button('Click to update sea travel distance database'):
+        with st.spinner('Updating...'):
+            done = False
+            try:
+                update_gsheets('sea_travel_distance', new_sea_dist_df)
+                done = True
+            except (TypeError) as e:
+                st.error('Error: Could not update')
+        if done:
+            st.success('Done!')
+
+
 #### ADD TO ADDITIONAL FACTORS DATABASE ####
 st.divider()
 st.markdown('#### Add New DEFRA Emissions Factors')
