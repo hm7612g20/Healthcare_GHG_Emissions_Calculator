@@ -1,4 +1,6 @@
-**File should be a .csv file in the following format:**
+**File should be a .csv file (can be saved from an Excel spreadsheet) in the following format:**
+
+*Please ensure there are no spaces after the comma separating the data columns!*
 
 component, loc, year, unit, factor_kgCO2eq_unit, carbon_content, source
 

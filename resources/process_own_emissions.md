@@ -1,4 +1,7 @@
-**File should be a .csv file in the following format:**
+**File should be a .csv file (can be saved from an Excel spreadsheet) in the following format:**
+
+*Please ensure there are no spaces after the comma separating the data columns!*
+
 This may be downloaded from Product Calculator or Inventory calculator as required.
 
 product, category, electricity, water, gas, component_1, manu_year_1, mass_kg_1, no_uses_1, biogenic_1, manu_loc_1, debark_port_1, depart_loc_uk_1, reprocessing_1, recycle_1, incinerate_1, landfill_1, manufacture_emissions, transport_emissions, use_emissions, reprocessing_emissions, disposal_emissions, total_pp_emissions

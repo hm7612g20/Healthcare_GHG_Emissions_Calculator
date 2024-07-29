@@ -1,5 +1,13 @@
-#### Component Cmissions Factors in Stored Database:
+#### Component Emissions Factors in Stored Database:
 > ecoinvent, ecoinvent Database: Version 3.10. 2024. Available from: www.ecoinvent.org/
+
+> Parvatker, A.G., Tunceroglu, H., Sherman, J.D., Coish, P., Anastas, P., Zimmerman, J.B., and Eckelman, M.J. (2019). 'Cradle-to-Gate Greenhouse Gas Emissions for Twenty Anesthetic Active Pharmaceutical Ingredients Based on Process Scale-Up and Process Design Calculations', *ACS Sustainable Chemistry & Engineering*, 7(7), pp. 6580-6591. doi: 10.1021/acssuschemeng.8b05473.
+
+> Budzinski, K., Constable, D., D'Aquila, D., Smith, P., Madabhushi, S.R., Whiting, A., Costelloe, T., and Collins, M. (2022). 'Streamlined life cycle assessment of single use technologies in biopharmaceutical manufacture', *New Biotechnology*, 68, pp. 28-36. doi: 10.1016/j.nbt.2022.01.002.
+
+> Andersen, M.P.S., Nielsen, O.J., Karpichev, B., Wallington, T.J., and Sander, S.P. (2012). 'Atmospheric Chemistry of Isoflurane, Desflurane, and Sevoflurane: Kinetics and Mechanisms of Reactions with Chlorine Atoms and OH Radicals and Global Warming Potentials', *Journal of Physical Chemistry A*, 116(24), pp. 5806-5820. doi: 10.1021/jp2077598.
+
+>  Goucher, L., Bruce, R., Cameron, D.D. et al. (2017) The environmental impact of fertilizer embodied in a wheat-to-bread supply chain. *Nature Plants*, 3, 17012. doi: 10.1038/nplants.2017.12
 
 #### Component Emissions Factors for Calculator:
 > Circular Ecology, ICE Database: Version 3.0. 2019. Available from: https://circularecology.com/embodied-carbon-footprint-database.html
