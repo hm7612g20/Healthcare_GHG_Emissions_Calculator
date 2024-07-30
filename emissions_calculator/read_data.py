@@ -58,6 +58,7 @@ def read_products():
     return products
 
 
+@st.cache_data(show_spinner=False, ttl='1d')
 def read_products_local():
     '''Reads inventory of products into a pd.DataFrame.'''
     # Read in products data
@@ -104,6 +105,7 @@ def read_open_source_emissions():
     return emissions
 
 
+@st.cache_data(show_spinner=False, ttl='1d')
 def read_emissions_local():
     '''Reads inventory of products and their emissions into a pd.DataFrame.'''
     # Emissions data filepath
@@ -136,6 +138,7 @@ def read_factors():
     return factors
 
 
+@st.cache_data(show_spinner=False, ttl='1d')
 def read_factors_local():
     '''Reads factors file into a pd.DataFrame.'''
     # Factors data filepath
@@ -217,6 +220,7 @@ def read_additional_factors():
     return factors
 
 
+@st.cache_data(show_spinner=False, ttl='1d')
 def read_additional_factors_local():
     '''
     Reads factors file for laundry, disposal, transport, electricity, water
@@ -275,6 +279,7 @@ def read_additional_factors_inv():
     return factors
 
 
+@st.cache_data(show_spinner=False, ttl='1d')
 def read_additional_factors_inv_local():
     '''
     Reads factors file for laundry, disposal, transport, electricity, water
@@ -348,6 +353,7 @@ def read_travel_dist():
     return land_travel_dist, sea_travel_dist
 
 
+@st.cache_data(show_spinner=False, ttl='1d')
 def read_travel_dist_local():
     '''Reads list of land and sea travel distances into a DataFrame.'''
     # Land travel distances filepath

@@ -237,7 +237,7 @@ def lengthen_shorten_inventory_data(product, data, header):
     return data, header
 
 
-def update_local_inventory(product_info, to_database):
+def update_local_inventory(product_info):
     '''
     Updates emissions file given new calculations and archieves the old one.
 
@@ -247,8 +247,6 @@ def update_local_inventory(product_info, to_database):
         Contains product information - made up of components, mass, where they
         are made and where they are transported to, reprocessing if required
         and disposal information.
-    to_database: bool
-        If changes should be pushed to database. Only works locally.
 
     Returns:
     --------
@@ -262,14 +260,13 @@ def update_local_inventory(product_info, to_database):
             product_info, data, header)
         products = pd.DataFrame(new_data, columns=new_header)
 
-        if to_database:
-            # Creates new .csv file with emissions
-            update_local_database(products, 'products')
+        # Creates new .csv file with emissions
+        update_local_database(products, 'products')
     else:
         products = None
         st.error('Cannot update product database.')
 
-    return products
+    return
 
 
 def update_inventory(product_info, products):
@@ -362,7 +359,7 @@ def lengthen_shorten_emissions_data(product, data, header):
     return data, header, product_data
 
 
-def update_local_emissions(product_info, to_database):
+def update_local_emissions(product_info):
     '''
     Updates emissions file given new calculations and archieves the old one.
 
@@ -372,8 +369,6 @@ def update_local_emissions(product_info, to_database):
         Contains product information - made up of components, mass, where they
         are made and where they are transported to, reprocessing if required
         and disposal information.
-    to_database: bool
-        If changes should be pushed to database. Only works locally.
 
     Returns:
     --------
@@ -387,17 +382,14 @@ def update_local_emissions(product_info, to_database):
          product_data) = lengthen_shorten_emissions_data(
              product_info, data, header)
         emissions = pd.DataFrame(new_data, columns=new_header)
-        product = pd.DataFrame([product_data], columns=new_header)
 
-        if to_database:
-            # Creates new .csv file with emissions
-            update_local_database(emissions, 'emissions')
+        # Creates new .csv file with emissions
+        update_local_database(emissions, 'emissions')
     else:
         emissions = None
-        product = None
         st.error('Cannot update emissions database.')
 
-    return emissions, product
+    return
 
 
 def update_emissions(product_info, emissions):
@@ -422,6 +414,7 @@ def update_emissions(product_info, emissions):
     (new_data, new_header,
      product_data) = lengthen_shorten_emissions_data(
          product_info, data, header)
+
     emissions = pd.DataFrame(new_data, columns=new_header)
     product = pd.DataFrame([product_data], columns=new_header)
 
@@ -488,5 +481,33 @@ def update_travel_distances(start, end, distance, sea=False):
 
         travel_distance = pd.DataFrame(data, columns=header)
         travel_distance.to_csv(filepath, index=False)
+
+    return
+
+def update_travel_distances_from_df(df, sea=False):
+    '''
+    Adds new travel distance file to csv.
+
+    Parameters:
+    -----------
+    df: pd.DataFrame
+        Contains new travel distances as a df.
+    sea: bool, optional (default=False)
+        If sea travel file or land travel file should be updated.
+
+    Returns:
+    --------
+    None.
+    '''
+    if sea:
+        filepath = get_filepath(f'data/sea_travel_distance.csv')
+    else:
+        filepath = get_filepath(f'data/land_travel_distance.csv')
+
+    # Checks that file exists in location
+    if os.path.isfile(filepath):
+        old_dist = pd.read_csv(filepath)
+        new_dist = pd.concat([old_dist, df])
+        new_dist.to_csv(filepath, index=False)
 
     return
