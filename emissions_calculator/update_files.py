@@ -343,12 +343,12 @@ def lengthen_shorten_emissions_data(product, data, header):
                 # Extends all current lists in file to match size of new data
                 to_add = ['0' for j in range(12)]
                 other.extend(to_add)
-                other.extend(emissions_data)
                 if ind == 0:
                     # Creates new headers corresponding to new information
                     comp_header = write_new_header(
                         comp_header, large_no_comp, i)
 
+            other.extend(emissions_data)
             new_data.append(other)
 
         header = comp_header + emissions_header
