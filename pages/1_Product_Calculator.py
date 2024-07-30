@@ -36,8 +36,8 @@ def check_data(data):
         exit_program()
 
 
-def is_local():
-    '''Extracts if program is running locally.'''
+def is_cloud():
+    '''Extracts if program is running on Streamlit cloud.'''
     cloud = False
     for i in os.environ:
         if i == 'HOSTNAME':
@@ -612,18 +612,46 @@ st.title('Calculate Emissions for Products')  # Page title
 st.markdown(f'''Input product details to get an estimate of its
                 carbon footprint per use.''')
 
-cloud = is_local()  # Checks if running locally
+cloud = is_cloud()  # Checks if running locally
 
 #### READ IN DATA ####
 today = datetime.now()
 year = int(today.strftime("%Y"))  # Finds current year
 
 with st.spinner('Loading data...'):
-    factors = read_data.read_factors()  # Reads in factors file
+    if cloud:
+        factors = read_data.read_factors()  # Reads in factors file
+        # Reads other factors such as travel and electricity/water/gas
+        additional_factors = read_data.read_additional_factors()
+    
+        # Inventory file and emissions
+        product_data = read_data.read_products()
+        product_emissions = read_data.read_emissions()
+        open_emissions = read_data.read_open_source_emissions()
+        check_data(open_emissions)
+    
+        # Reads in travel distances
+        land_travel_dist, sea_travel_dist = read_data.read_travel_dist()
+
+    else:
+        factors = read_data.read_factors_local()  # Reads in factors file
+        # Reads other factors such as travel and electricity/water/gas
+        additional_factors = read_data.read_additional_factors_local()
+
+        # Inventory file and emissions
+        product_data = read_data.read_products_local()
+        product_emissions = read_data.read_emissions_local()
+        open_emissions = product_emissions.copy(deep=True)
+
+        # Reads in travel distances
+        land_travel_dist, sea_travel_dist = read_data.read_travel_dist_local()
+
     check_data(factors)
-    # Reads other factors such as travel and electricity/water/gas
-    additional_factors = read_data.read_additional_factors()
     check_data(additional_factors)
+    check_data(product_data)
+    check_data(product_emissions)
+    check_data(land_travel_dist)
+    check_data(sea_travel_dist)
 
     # Read list of processes in factors file
     process_list = read_data.read_processes()
@@ -641,20 +669,10 @@ with st.spinner('Loading data...'):
     uk_locations = uk_ports_list + uk_cities_list
     uk_locations = sorted(list(set(uk_locations)))
 
-    # Reads in travel distances
-    land_travel_dist, sea_travel_dist = read_data.read_travel_dist()
-
     # Reads info on decontamination units
     decon_units = read_data.read_decon_units()
     check_data(decon_units)
 
-    # Inventory file and emissions
-    product_data = read_data.read_products()
-    check_data(product_data)
-    product_emissions = read_data.read_emissions()
-    check_data(product_emissions)
-    open_emissions = read_data.read_open_source_emissions()
-    check_data(open_emissions)
     # Creates list of all products in file
     current_prod = product_emissions['product'].to_list()
 
@@ -728,6 +746,12 @@ if upload_factors:
         else:
             factors = own_factors_df
 
+        if not cloud:
+            if st.checkbox('Select to add new factors to file'):
+                with st.spinner('Updating...'):
+                    update.update_factors_file(own_factors_df)
+                st.success('Done!')
+
 if factors is not None:
     try:
         # Creates list of available factors to choose from
@@ -797,17 +821,18 @@ st.markdown(f'''> *Please note: it is assumed that all products in the
 
 #### CHOOSE DATABASE ####
 # Changes which data is used depending on user choice
-open = st.checkbox(f'''Select to use database containing emissions values
+if cloud:
+    open = st.checkbox(f'''Select to use database containing emissions values
                        calculated with freely available emissions factors''')
-st.markdown(f'''> *Please note: selecting this is recommended if changing
+    st.markdown(f'''> *Please note: selecting this is recommended if changing
                 product information so values are calculated using the same
                 emissions factors. If this is not selected, it will access
                 values calculated using emissions factors from EcoInvent
                 (version 3.10). Any emissions values calculated using this
                 calculator will use freely available emissions factors and so
                 the final value will differ.*''')
-if open:
-    product_emissions = open_emissions.copy(deep=True)
+    if open:
+        product_emissions = open_emissions.copy(deep=True)
 
 #### SETS UP VARIABLES ####
 # Holds product info
@@ -1442,8 +1467,14 @@ if chosen is None or change_info:
                 f'''Select if you wish to include travel to end location
                 in single product emissions file''')
 
-            # if not cloud:
-            #     to_database = st.checkbox(f'Save product to database')
+            if not cloud:
+                to_database = st.checkbox(f'Save product to database')
+                if to_database:
+                    with st.spinner('Updating...'):
+                        update.update_local_emissions(prod_info)
+                        update.update_local_inventory(prod_info)
+                    st.success('Done!')
+
             download_database(
                 prod_info, emissions_info, extra_travel, incl_travel,
                 product_data, open_emissions)

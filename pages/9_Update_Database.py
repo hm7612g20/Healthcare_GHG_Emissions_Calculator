@@ -2,6 +2,8 @@
 import streamlit as st
 import pandas as pd
 import hmac
+import os
+import sys
 
 from datetime import datetime
 
@@ -31,6 +33,16 @@ def check_data(data):
     '''Checks that data has successfully been read in, else exits program.'''
     if data is None:
         exit_program()
+
+
+def is_cloud():
+    '''Extracts if program is running on Streamlit cloud.'''
+    cloud = False
+    for i in os.environ:
+        if i == 'HOSTNAME':
+            cloud = True
+
+    return cloud
 
 
 #### PASSWORD ####
@@ -116,7 +128,7 @@ def convert_df(df):
     return df.to_csv(index=False).encode('utf-8')
 
 
-def download_example_file(name='products'):
+def download_example_file(name='products', key='p'):
     '''Downloads example template file for users to fill in and upload.'''
     st.markdown(f'''You can download an empty file below that can be
                     populated and uploaded above.''')
@@ -129,16 +141,25 @@ def download_example_file(name='products'):
     st.download_button(
         label='Download example file',
         data=ex,
-        file_name=name+'.csv',
-        mime='text/csv'
+        file_name=f'{name}+.csv',
+        mime='text/csv',
+        key=key
     )
 
     return
 
 
+#### CHECKS ACCESS ####
+cloud = is_cloud()  # Checks if running locally
+
+if not cloud:
+    st.error(f'''Sorry, this functionality is only available using the Streamlit
+                 cloud web-app.''')
+    exit_program()
+
 if not check_password():
     st.markdown(f'''If you do not have access: to request an update, please
-                email revelant files to <email>''')
+                email revelant files to *hm7612g20@gmail.com*''')
     st.stop()  # Do not continue if check_password is not True
 
 
@@ -202,7 +223,7 @@ new_prod_emissions = st.file_uploader(f'Upload new product emissions file.',
                                       type=['csv'])
 with st.expander(f'''Click to view file requirements or to download
                      empty example file'''):
-    download_example_file(name='emissions')
+    download_example_file(name='emissions', key='e')
     st.markdown(f'''Please note: the file should include the number of
                 components equal to that contained in the current database
                 (number of components: {no_comp}.''')
@@ -242,7 +263,7 @@ new_factors = st.file_uploader(f'Upload new emissions factors file.',
                                type=['csv'])
 with st.expander(f'''Click to view file requirements or to download
                      empty example file'''):
-    download_example_file(name='factors')
+    download_example_file(name='factors', key='f')
     st.markdown(read_file_contents('resources/own_factors.md'))
 
 if new_factors is not None:

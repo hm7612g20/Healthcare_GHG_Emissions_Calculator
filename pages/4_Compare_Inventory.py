@@ -37,6 +37,16 @@ def check_data(data):
         exit_program()
 
 
+def is_cloud():
+    '''Extracts if program is running on Streamlit cloud.'''
+    cloud = False
+    for i in os.environ:
+        if i == 'HOSTNAME':
+            cloud = True
+
+    return cloud
+
+
 #### DOWNLOADS ####
 def convert_df(df):
     '''Converts dataframe to csv file for download.'''
@@ -234,27 +244,48 @@ st.markdown(f'''Use this page to change product characteristics in the current
                 product database for multiple products and compare their GHG
                 emissions.''')
 
+cloud = is_cloud()  # Checks if running locally
+
 today = datetime.now()
 year = int(today.strftime("%Y"))  # Finds current year
 
 #### READS IN DATA ####
 with st.spinner('Loading data...'):
-    # Reads in product database
-    products = read_data.read_products()
+    if cloud:
+        # Reads in product database
+        products = read_data.read_products()
+        # Inventory emissions file
+        emissions = read_data.read_open_source_emissions()
+    
+        factors = read_data.read_factors_inv()  # Reads in factors file
+        # Reads other factors such as travel and electricity/water/gas
+        additional_factors = read_data.read_additional_factors_inv()
+    
+        # Reads in travel distances
+        land_travel_dist, sea_travel_dist = read_data.read_travel_dist()
+
+    else:
+        # Reads in product database
+        products = read_data.read_products_local()
+        # Inventory emissions file
+        emissions = read_data.read_emissions_local()
+
+        factors = read_data.read_factors_inv_local()  # Reads in factors file
+        # Reads other factors such as travel and electricity/water/gas
+        additional_factors = read_data.read_additional_factors_inv_local()
+
+        # Reads in travel distances
+        land_travel_dist, sea_travel_dist = read_data.read_travel_dist_local()
+    
     check_data(products)
+    check_data(emissions)
+    check_data(factors)
+    check_data(additional_factors)
+    check_data(land_travel_dist)
+    check_data(sea_travel_dist)
 
     # Finds number of components given the data
     no_comp = int(list(products.columns)[-1].split('_')[-1])
-
-    # Inventory emissions file
-    emissions = read_data.read_open_source_emissions()
-    check_data(emissions)
-
-    factors = read_data.read_factors_inv()  # Reads in factors file
-    check_data(factors)
-    # Reads other factors such as travel and electricity/water/gas
-    additional_factors = read_data.read_additional_factors_inv()
-    check_data(additional_factors)
 
     # Reads in cities and ports
     cities_list, uk_cities_list = read_data.read_cities()
@@ -267,9 +298,6 @@ with st.spinner('Loading data...'):
     # List of places in UK, including ports
     uk_locations = uk_ports_list + uk_cities_list
     uk_locations = sorted(list(set(uk_locations)))
-
-    # Reads in travel distances
-    land_travel_dist, sea_travel_dist = read_data.read_travel_dist()
 
     # Reads info on decontamination units
     decon_units = read_data.read_decon_units()
@@ -288,7 +316,6 @@ st.markdown('#### Update Emissions Factors if Desired')
 own_factors_file = None
 if st.checkbox(f'''Select if you wish to upload your own emissions factors
                file'''):
-    join_files = False
     own_factors_file = st.file_uploader(
         f'Upload your own emissions factors file if required', type=['csv'])
     with st.expander(f'''Click to view file requirements or to download
@@ -308,10 +335,10 @@ if st.checkbox(f'''Select if you wish to upload your own emissions factors
         join_files = st.checkbox(f'''Select if you wish to also include
                                  factors from the current database''')
 
-    if join_files:  # Joins with stored data if requested
-        factors = pd.concat([own_factors_df, factors])
-    elif own_factors_file is not None:
-        factors = own_factors_df
+        if join_files:  # Joins with stored data if requested
+            factors = pd.concat([own_factors_df, factors])
+        else:
+            factors = own_factors_df
 
 #### UPLOAD NEW LAND TRAVEL DISTANCE ####
 own_dist_file = None

@@ -39,8 +39,18 @@ def check_data(data):
         exit_program()
 
 
+def is_cloud():
+    '''Extracts if program is running on Streamlit cloud.'''
+    cloud = False
+    for i in os.environ:
+        if i == 'HOSTNAME':
+            cloud = True
+
+    return cloud
+
+
 #### ADDITIONAL CALCULATIONS ####
-def travel_end_loc(df, dest_city, no_comp):
+def travel_end_loc(df, dest_city, no_comp, cloud):
     '''
     Calculates GHG emissions corresponding to travel to end city from point
     where it begins journey in UK.
@@ -53,6 +63,8 @@ def travel_end_loc(df, dest_city, no_comp):
         City where product will be used.
     no_comp: int
         Number of components in product.
+    cloud: bool
+        If travel distance can be saved to file.
 
     Returns:
     --------
@@ -102,6 +114,9 @@ def travel_end_loc(df, dest_city, no_comp):
                     if dist_km > 0.0:
                         land_travel_dist.loc[(city1, city2),
                                              ['distance_km']] = [dist_km]
+                        if not cloud:  # Updates file if available
+                            update.update_travel_distances(
+                                city1, city2, dist_km)
                     else:
                         break
 
@@ -162,7 +177,7 @@ def format_integer_without_commas(x):
 
 
 def choose_database(chosen_products, product_emissions, no_comp,
-                    dest_city):
+                    dest_city, cloud):
     '''
     Selects relevant part of emissions database if certain product
     is selected from list.
@@ -177,6 +192,8 @@ def choose_database(chosen_products, product_emissions, no_comp,
         Maximum number of components in data.
     dest_city: str
         City where products are transported to.
+    cloud: bool
+        If travel distance can be saved to file.
 
     Returns:
     -------
@@ -198,7 +215,7 @@ def choose_database(chosen_products, product_emissions, no_comp,
     original_df = selected.reset_index().copy(deep=True)
 
     # Works out additional travel emissions to end city
-    end_travel = travel_end_loc(selected, dest_city, no_comp)
+    end_travel = travel_end_loc(selected, dest_city, no_comp, cloud)
     new_travel = []
     for old, new in zip(selected['transport_emissions'].to_list(),
                         end_travel):
@@ -544,9 +561,27 @@ st.markdown(f'''Select different products contained in the current database to
 st.markdown(f'''If a new product is required, calculations can be made using
                 **Product Calculator** or input your own file.''')
 
+cloud = is_cloud()  # Checks if running locally
+
+#### READS IN DATA ####
+with st.spinner('Loading data...'):
+    # Reads in cities and ports
+    cities_list, uk_cities_list = read_data.read_cities()
+    check_data(cities_list)
+    check_data(uk_cities_list)
+
+    if cloud:
+        # Inventory emissions file
+        product_emissions = read_data.read_emissions()
+        open_emissions = read_data.read_open_source_emissions()
+        check_data(open_emissions)
+    else:
+        product_emissions = read_data.read_emissions_local()
+
+    check_data(product_emissions)
+
 st.divider()
 st.markdown('#### Upload Own Emissions File if Desired')
-join_files = False
 own_file = st.file_uploader(f'Upload own emissions file if desired.',
                             type=['csv'])
 # Additional information stored under a read more option
@@ -559,23 +594,10 @@ if own_file is not None:  # Reads uploaded file into pd.DataFrame
     join_files = st.checkbox(f'''Select if you wish to also include
                              products from the current database''')
 
-#### READS IN DATA ####
-with st.spinner('Loading data...'):
-    # Reads in cities and ports
-    cities_list, uk_cities_list = read_data.read_cities()
-    check_data(cities_list)
-    check_data(uk_cities_list)
-
-    # Inventory emissions file
-    product_emissions = read_data.read_emissions()
-    check_data(product_emissions)
-    open_emissions = read_data.read_open_source_emissions()
-    check_data(open_emissions)
-
-if join_files:  # Joins with current database if requested
-    product_emissions = pd.concat([own_df, product_emissions])
-elif own_file is not None:
-    product_emissions = own_df
+    if join_files:  # Joins with current database if requested
+        product_emissions = pd.concat([own_df, product_emissions])
+    else:
+        product_emissions = own_df
 
 try:  # Creates list of products in inventory
     current_prod = product_emissions['product'].to_list()
@@ -595,14 +617,15 @@ dest_city = st.selectbox(f'Select end destination where product is used',
                          uk_cities_list, index=felixstowe_ind).lower()
 
 #### CHOOSE DATABASE ####
-# Changes which data is used depending on user choice
-open = st.checkbox(f'''Select to use database containing emissions values
+if cloud:
+    # Changes which data is used depending on user choice
+    open = st.checkbox(f'''Select to use database containing emissions values
                        calculated with freely available emissions factors''')
-st.markdown(f'''> *Please note: if this is not selected, it will access
+    st.markdown(f'''> *Please note: if this is not selected, it will access
                 values calculated using emissions factors from EcoInvent
                 (version 3.10).*''')
-if open:
-    product_emissions = open_emissions.copy(deep=True)
+    if open:
+        product_emissions = open_emissions.copy(deep=True)
 
 # Selects any number of products from the current inventory
 chosen = st.multiselect('Select products in process', current_prod)
@@ -617,7 +640,7 @@ if len(chosen) > 0:
         no_comp = int(list(product_emissions.columns)[-7].split('_')[-1])
         # Creates dataframe containing only chosen items
         chosen_df, orig_df, orig_df_trv = choose_database(
-            chosen, product_emissions, no_comp, dest_city)
+            chosen, product_emissions, no_comp, dest_city, cloud)
     except (KeyError, IndexError) as e:  # Stops if incorrect file format
         st.error('Error: incorrect file format.')
         exit_program()

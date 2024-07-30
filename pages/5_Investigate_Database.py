@@ -23,6 +23,16 @@ def check_data(data):
         exit_program()
 
 
+def is_cloud():
+    '''Extracts if program is running on Streamlit cloud.'''
+    cloud = False
+    for i in os.environ:
+        if i == 'HOSTNAME':
+            cloud = True
+
+    return cloud
+
+
 #### FORMATTING ####
 def choose_database(data):
     '''
@@ -223,28 +233,39 @@ st.title('Comparison Emissions Plots')  # Page title
 st.markdown(f'''Create informative plots of GHG emissions for products
                 contained in the database.''')
 
+cloud = is_cloud()  # Checks if running locally
 
 with st.spinner('Loading data...'):
-    factors = read_data.read_factors()  # Reads in factors file
+    if cloud:
+        factors = read_data.read_factors()  # Reads in factors file
 
-    # Inventory emissions file
-    product_emissions = read_data.read_emissions()
+        # Inventory emissions file
+        product_emissions = read_data.read_emissions()
+        open_emissions = read_data.read_open_source_emissions()
+        check_data(open_emissions)
+
+    else:
+        factors = read_data.read_factors_local()  # Reads in factors file
+
+        # Inventory emissions file
+        product_emissions = read_data.read_emissions_local()
+
+    check_data(factors)
     check_data(product_emissions)
-    open_emissions = read_data.read_open_source_emissions()
-    check_data(open_emissions)
 
     # List of products in dataframe
     current_prod = product_emissions['product'].to_list()
 
 #### CHOOSE DATABASE ####
-# Changes which data is used depending on user choice
-open = st.checkbox(f'''Select to use database containing emissions values
+if cloud:
+    # Changes which data is used depending on user choice
+    open = st.checkbox(f'''Select to use database containing emissions values
                        calculated with freely available emissions factors''')
-st.markdown(f'''> *Please note: if this is not selected, it will access
+    st.markdown(f'''> *Please note: if this is not selected, it will access
                 values calculated using emissions factors from EcoInvent
                 (version 3.10).*''')
-if open:
-    product_emissions = open_emissions.copy(deep=True)
+    if open:
+        product_emissions = open_emissions.copy(deep=True)
 
 # Extracts columns needed for plot
 emissions = product_emissions.filter(

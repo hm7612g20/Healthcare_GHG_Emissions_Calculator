@@ -37,8 +37,8 @@ def check_data(data):
         exit_program()
 
 
-def is_local():
-    '''Extracts if program is running locally and if can save to database.'''
+def is_cloud():
+    '''Extracts if program is running on Streamlit cloud.'''
     cloud = False
     for i in os.environ:
         if i == 'HOSTNAME':
@@ -48,7 +48,7 @@ def is_local():
 
 
 #### ADDITIONAL TRAVEL CALC ####
-def travel_end_loc(df, dest_city, no_comp):
+def travel_end_loc(df, dest_city, no_comp, cloud):
     '''Calculates emissions to end city.'''
     # Reads other factors such as travel and electricity/water/gas
     additional_factors = read_data.read_additional_factors_inv()
@@ -90,6 +90,9 @@ def travel_end_loc(df, dest_city, no_comp):
                     if dist_km > 0.0:
                         land_travel_dist.loc[(city1, city2),
                                              ['distance_km']] = [dist_km]
+                        if not cloud:  # Updates file if available
+                            update.update_travel_distances(
+                                city1, city2, dist_km)
                     else:
                         break
 
@@ -103,26 +106,49 @@ def travel_end_loc(df, dest_city, no_comp):
     return travel_emissions
 
 
+#### READ DISTANCE FILE ####
+def read_distance_file(own_dist_file, travel_dist, cloud, sea=False):
+    own_dist = pd.read_csv(own_dist_file)
+    try:  # Sets file up in the same format
+        own_dist_df = own_dist.set_index(['start_loc', 'end_loc'])
+        travel_dist = pd.concat([travel_dist, own_dist_df])
+        travel_dist = travel_dist.sort_index()
+    except KeyError:  # Stops if wrong type of file used
+        st.error('Error: Incorrect file format.')
+        exit_program()
+
+    if sea:
+        text = 'Select to add new sea distances to file'
+    else:
+        text = 'Select to add new land distances to file'
+    if not cloud:
+        if st.checkbox(text):
+            with st.spinner('Updating...'):
+                update.update_travel_distances_from_df(own_dist, sea)
+            st.success('Done!')
+
+    return travel_dist
+    
 #### DOWNLOADS ####
 def convert_df(df):
     '''Converts dataframe to csv file for download.'''
     return df.to_csv(index=False).encode('utf-8')
 
 
-def download_example_file(key='products'):
+def download_example_file(name='products', key='p'):
     '''Downloads example template file for users to fill in and upload.'''
     st.markdown(f'''You can download an empty file below that can be
                     populated and uploaded above.''')
 
     # Reads in example file
-    ex_df = pd.read_excel(f'resources/{key}_example.xlsx')
+    ex_df = pd.read_excel(f'resources/{name}_example.xlsx')
     ex = convert_df(ex_df)
 
     # Outputs download button
     st.download_button(
         label='Download empty file',
         data=ex,
-        file_name=f'{key}.csv',
+        file_name=f'{name}.csv',
         mime='text/csv',
         key=key
     )
@@ -202,7 +228,7 @@ def format_dataframe(df):
 
 
 #### PLOTS ####
-def create_bar_chart(data):
+def create_bar_chart(data, w=1000, h=700):
     '''
     Create a plotly stacked bar chart.
 
@@ -211,11 +237,18 @@ def create_bar_chart(data):
     data: pd.Dataframe
         rows = products, columns = emissions broken down into
         categories.
+    w: int, optional (default=1000)
+        Width of plot.
+    h: int, optional (default=700)
+        Height of plot.
 
     Returns:
     -------
     plotly.figure
     '''
+    if len(data) == 1:
+        w=400
+        
     # Sorts so highest total appears first
     sorted_data = data.sort_values(by=['Total / kg CO2e'], ascending=False)
 
@@ -243,8 +276,8 @@ def create_bar_chart(data):
     fig.update_layout(
         barmode='relative',
         autosize=False,
-        width=1000,
-        height=800,
+        width=w,
+        height=h,
         title='Emissions',
         yaxis_title='Emissions / kg CO2e'
     )
@@ -267,21 +300,38 @@ st.markdown(f'''Get an estimate of the carbon footprint per use for multiple
 st.markdown(f'''You can either upload your own file or update and download
                 the current emissions database.''')
 
-cloud = is_local()  # Checks if running locally
+cloud = is_cloud()  # Checks if running locally
 
 today = datetime.now()
 year = int(today.strftime("%Y"))  # Finds current year
 
 #### READS IN DATA ####
 with st.spinner('Loading data...'):
-    products = read_data.read_products()
-    check_data(products)
+    if cloud:
+        products = read_data.read_products()
+    
+        factors = read_data.read_factors_inv()  # Reads in factors file
+        # Reads other factors such as travel and electricity/water/gas
+        additional_factors = read_data.read_additional_factors_inv()
+    
+        # Reads in travel distances
+        land_travel_dist, sea_travel_dist = read_data.read_travel_dist()
 
-    factors = read_data.read_factors_inv()  # Reads in factors file
+    else:
+        products = read_data.read_products_local()
+
+        factors = read_data.read_factors_inv_local()  # Reads in factors file
+        # Reads other factors such as travel and electricity/water/gas
+        additional_factors = read_data.read_additional_factors_inv_local()
+
+        # Reads in travel distances
+        land_travel_dist, sea_travel_dist = read_data.read_travel_dist_local()
+
+    check_data(products)
     check_data(factors)
-    # Reads other factors such as travel and electricity/water/gas
-    additional_factors = read_data.read_additional_factors_inv()
     check_data(additional_factors)
+    check_data(land_travel_dist)
+    check_data(sea_travel_dist)
 
     # Reads in cities and ports
     cities_list, uk_cities_list = read_data.read_cities()
@@ -290,9 +340,6 @@ with st.spinner('Loading data...'):
     ports_list, uk_ports_list = read_data.read_ports()
     check_data(ports_list)
     check_data(uk_ports_list)
-
-    # Reads in travel distances
-    land_travel_dist, sea_travel_dist = read_data.read_travel_dist()
 
     # Reads info on decontamination units
     decon_units = read_data.read_decon_units()
@@ -336,12 +383,11 @@ except ValueError:  # Stops if wrong type of file used
 own_factors_file = None
 if st.checkbox(f'''Select if you wish to upload your own emissions factors
                file'''):
-    join_files = False
     own_factors_file = st.file_uploader('Upload own emission factors file',
                                         type=['csv'])
     with st.expander(f'''Click to view file requirements or to download
                      empty example file'''):
-        download_example_file(key='factors')
+        download_example_file(name='factors', key='f')
         st.markdown(read_file_contents('resources/own_factors.md'))
 
     if own_factors_file is not None:  # Reads uploaded file into pd.DataFrame
@@ -356,31 +402,35 @@ if st.checkbox(f'''Select if you wish to upload your own emissions factors
         join_files = st.checkbox(f'''Select if you wish to also include
                                  factors from the current database''')
 
-    if join_files:  # Joins with stored product database if required
-        factors = pd.concat([own_factors_df, factors])
-    elif own_factors_file is not None:
-        factors = own_factors_df
+        if join_files:  # Joins with stored product database if required
+            factors = pd.concat([own_factors_df, factors])
+        else:
+            factors = own_factors_df
 
-#### UPLOAD NEW LAND TRAVEL DISTANCE ####
-own_dist_file = None
-if st.checkbox(f'''Select if you are getting **Error: Journey not listed in
-                   file** to upload your own distances'''):
-    own_dist_file = st.file_uploader('Upload own land travel distance file',
-                                         type=['csv'])
+        if not cloud:
+            if st.checkbox('Select to add new factors to file'):
+                with st.spinner('Updating...'):
+                    update.update_factors_file(own_factors_df)
+                st.success('Done!')
+
+#### UPLOAD NEW TRAVEL DISTANCE ####
+if st.checkbox(f'''Select to upload your own distance files. Required if you
+               are getting **Error: Journey not listed in file**'''):
+    own_ldist_file = st.file_uploader('Upload own land travel distance file',
+                                      type=['csv'])
+    own_sdist_file = st.file_uploader('Upload own sea travel distance file',
+                                      type=['csv'])
     with st.expander(f'''Click to view file requirements or to download
                      empty example file'''):
-        download_example_file(key='distance')
+        download_example_file(name='distance', key='d')
         st.markdown(read_file_contents('resources/own_distance.md'))
 
-    if own_dist_file is not None:  # Reads uploaded file into pd.DataFrame
-        own_dist_df = pd.read_csv(own_dist_file)
-        try:  # Sets file up in the same format
-            own_dist_df = own_dist_df.set_index(['start_loc', 'end_loc'])
-            own_dist_df = own_dist_df.sort_index()
-            land_travel_dist = pd.concat([land_travel_dist, own_dist_df])
-        except KeyError:  # Stops if wrong type of file used
-            st.error('Error: Incorrect file format.')
-            exit_program()
+    if own_ldist_file is not None:  # Reads uploaded file into pd.DataFrame
+        land_travel_dist = read_distance_file(own_ldist_file,
+                                              land_travel_dist, cloud)
+    if own_sdist_file is not None:
+        sea_travel_dist = read_distance_file(own_sdist_file, sea_travel_dist,
+                                             cloud, sea=True)
 
 st.divider()
 st.markdown('#### Select Required Information For Calculation')
@@ -415,10 +465,10 @@ inc_additional = st.checkbox(f'''Select if you wish to include travel to end
                              location in CSV file''', key='travel_csv')
 st.session_state.additional_csv = inc_additional
 
-# update = False
-# if not cloud:
-#    update = st.checkbox('Update emissions file following calculation',
-#                         key='update')
+update = False
+if not cloud:
+    update = st.checkbox('Update emissions file following calculation',
+                         key='update')
 
 st.divider()
 st.markdown('#### Perform Calculation')
@@ -460,7 +510,8 @@ if st.button('Click to Calculate Emissions'):
                 total_make, total_travel, use, total_repro, net_waste)
 
             # Additional travel to end location
-            additional_travel = travel_end_loc(products, dest_city, no_comp)
+            additional_travel = travel_end_loc(products, dest_city, no_comp,
+                                               cloud)
 
         except (KeyError, AttributeError) as e:  # Stops if wrong type of file
             st.error('Error: Incorrect file format.')
@@ -495,12 +546,9 @@ if st.button('Click to Calculate Emissions'):
     st.session_state.calculation = results
     st.session_state.additional_calculation = results_inc_additional
 
-    # if update and not cloud:
-    #    own = False
-    #    if uploaded_file is not None:
-    #        own = True
-    #    update.update_emissions(products, total_make, total_travel, use,
-    #                            total_repro, net_waste, total, own)
+    if update and not cloud:
+       if uploaded_file is not None:
+            update.update_local_emissions(results)
 
 #### PLOT AND DISPLAY RESULTS ####
 # Plots results if required and prints dataframe of results

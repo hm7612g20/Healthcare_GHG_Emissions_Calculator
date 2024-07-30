@@ -20,6 +20,17 @@ def check_data(data):
     if data is None:
         exit_program()
 
+
+def is_cloud():
+    '''Extracts if program is running on Streamlit cloud.'''
+    cloud = False
+    for i in os.environ:
+        if i == 'HOSTNAME':
+            cloud = True
+
+    return cloud
+
+
 #### PLOTS ####
 def create_bar_chart(open_data, exclude=0, num_plot=15, w=1000, h=700, a=False,
                      open=True, data=None):
@@ -147,6 +158,13 @@ st.title('Comparison Emissions Plots')  # Page title
 st.markdown(f'''Compare GHG emissions for products contained in the database
                 calculated using EcoInvent (version 3.10) emissions factors
                 and freely available data.''')
+
+cloud = is_cloud()  # Checks if running locally
+
+if not cloud:
+    st.error(f'''Sorry, this functionality is only available using the Streamlit
+                 cloud web-app.''')
+    exit_program()
 
 #### READ IN DATA ####
 with st.spinner('Loading data...'):
