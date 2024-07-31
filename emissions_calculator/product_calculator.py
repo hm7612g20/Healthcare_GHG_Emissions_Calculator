@@ -125,8 +125,8 @@ def extract_best_factor(factors, comp, loc, year, need_cc, country,
     searched_all: bool
         If country is selected but specific factor not available, it then
         searches based on whether it is made in Europe or the rest of the
-        world so tries again. Then it tries world. If cannot find information,
-        it prints out an error message.
+        world so tries again. Then it tries global. If cannot find the
+        information, it prints out an error message.
 
     Returns:
     --------
@@ -173,7 +173,7 @@ def extract_best_factor(factors, comp, loc, year, need_cc, country,
                 if not need_cc:
                     st.error(f'''No factor available for
                              **{comp.title()}** in {country.title()},
-                             {region.title()} or World. 0.0 will be used.''')
+                             {region.title()} or Global. 0.0 will be used.''')
 
     return fact, found
 
@@ -281,8 +281,8 @@ def manufacture_calc(product, factors, no_comp, dest_city):
                 searched_all=False)
 
             if fact is None:
-                # If still not found, tries world
-                loc = 'world'
+                # If still not found, tries global
+                loc = 'glo'
                 fact, found = extract_best_factor(
                     factors, comp, loc, year, need_cc, country,
                     searched_all=True)
@@ -752,8 +752,8 @@ def disposal_calc(product, factors, no_comp, landfill_fact, transport_fact,
                     searched_all=False)
 
                 if cc is None:
-                    # If still not found, tries world
-                    loc = 'world'
+                    # If still not found, tries global
+                    loc = 'glo'
                     cc, found = extract_best_factor(
                         factors, comp, loc, year, need_cc, country,
                         searched_all=True)

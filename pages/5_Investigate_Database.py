@@ -256,6 +256,10 @@ with st.spinner('Loading data...'):
     # List of products in dataframe
     current_prod = product_emissions['product'].to_list()
 
+if len(current_prod) == 0:
+    st.error('Error: Please populate required files to continue.')
+    exit_program()
+
 #### CHOOSE DATABASE ####
 if cloud:
     # Changes which data is used depending on user choice

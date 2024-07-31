@@ -558,8 +558,6 @@ st.set_page_config(layout='wide')  # Removes whitespace from edge of page
 st.title('Calculate Total Emissions for Process')  # Page title
 st.markdown(f'''Select different products contained in the current database to
                 calculate the total emissions for a given process.''')
-st.markdown(f'''If a new product is required, calculations can be made using
-                **Product Calculator** or input your own file.''')
 
 cloud = is_cloud()  # Checks if running locally
 
@@ -580,8 +578,13 @@ with st.spinner('Loading data...'):
 
     check_data(product_emissions)
 
+#### UPLOAD OWN FILE ####
 st.divider()
-st.markdown('#### Upload Own Emissions File if Desired')
+st.markdown('#### Upload Own Product Emissions File if Desired')
+st.markdown(f'''Perform calculations of process using own .csv file
+            containing product information and its corresponding emissions.
+            This can be used with files downloaded from **Product
+            Calculator** if a new product is required.''')
 own_file = st.file_uploader(f'Upload own emissions file if desired.',
                             type=['csv'])
 # Additional information stored under a read more option
@@ -590,7 +593,9 @@ with st.expander(f'''Click to view file requirements or to download
     download_example_file()
     st.markdown(read_file_contents('resources/process_own_emissions.md'))
 if own_file is not None:  # Reads uploaded file into pd.DataFrame
-    own_df = pd.read_csv(own_file)
+    own_df, error = read_data.check_uploaded_emissions_file(own_file)
+    if error:
+        exit_program()
     join_files = st.checkbox(f'''Select if you wish to also include
                              products from the current database''')
 
@@ -599,11 +604,12 @@ if own_file is not None:  # Reads uploaded file into pd.DataFrame
     else:
         product_emissions = own_df
 
-try:  # Creates list of products in inventory
-    current_prod = product_emissions['product'].to_list()
-    current_prod = [p.capitalize() for p in current_prod]  # Capitalises names
-except (AttributeError, KeyError) as e:  # Stops if incorrect file format
-    st.error('Error: incorrect file format.')
+# Creates list of products in inventory
+current_prod = product_emissions['product'].to_list()
+try:
+    current_prod = [p.title() for p in current_prod]  # Capitalises names
+except AttributeError:
+    st.error(f'''Error: Incorrect format for product name.''')
     exit_program()
 
 #### SELECT REQUIRED INFORMATION ####
@@ -628,6 +634,9 @@ if cloud:
         product_emissions = open_emissions.copy(deep=True)
 
 # Selects any number of products from the current inventory
+if len(current_prod) == 0:
+    st.error('Error: Please populate required files to continue.')
+    exit_program()
 chosen = st.multiselect('Select products in process', current_prod)
 chosen = [c.lower() for c in chosen]  # Reverts names to lower case
 

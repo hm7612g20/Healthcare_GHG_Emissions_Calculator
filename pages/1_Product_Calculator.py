@@ -239,7 +239,7 @@ def choose_database(chosen, product_emissions, no_comp, additional_factors,
             .map('{:.1f}'.format)
 
     # Capitalises product names
-    data.index = data.index.str.capitalize()
+    data.index = data.index.str.title()
     # Rounds values then converts all to strings
     data = data.round(decimals=6).astype(str)
 
@@ -289,7 +289,7 @@ def select_autofill(selected_prod, product_categories, available_factor,
 
     # Saves autofill information
     selected_auto['no_comp'] = no_comp
-    cat = selected_prod['category'].iloc[0].capitalize()
+    cat = selected_prod['category'].iloc[0].title()
     selected_auto['cat'] = product_categories.index(cat)
     selected_auto['no_uses'] = selected_prod['no_uses_1'].iloc[0]
     selected_auto['elec'] = str(selected_prod['electricity'].iloc[0])
@@ -297,7 +297,7 @@ def select_autofill(selected_prod, product_categories, available_factor,
     selected_auto['gas'] = str(selected_prod['gas'].iloc[0])
 
     for i in range(no_comp):
-        comp = selected_prod['component_' + str(i+1)].iloc[0].capitalize()
+        comp = selected_prod['component_' + str(i+1)].iloc[0].title()
         try:
             selected_auto['comp_' + str(i+1)] = available_factor.index(comp)
         except ValueError:
@@ -678,6 +678,8 @@ with st.spinner('Loading data...'):
 
 st.divider()
 st.markdown('#### Update Emissions Factors if Desired')
+st.markdown(f'''Update information stored in databases to suit your
+                own file requirements.''')
 #### INPUT OWN FACTORS AND INFO ####
 # Finds which years of Defra file have been added to files
 defra_yrs = additional_factors[additional_factors['name'] == 'hgv transport']
@@ -736,12 +738,16 @@ if upload_factors:
         st.markdown(read_file_contents('resources/own_factors.md'))
 
     if own_factors_file is not None:
-        own_factors_df = pd.read_csv(own_factors_file)
-        join_files = st.checkbox(f'''Select if you wish to also include
-                                 factors from the current database''')
+        (own_factors_df,
+         error) = read_data.check_uploaded_factors_file(
+             own_factors_file, False)
+        if error:
+            exit_program()
 
+        join_files = st.checkbox(f'''**Select if you wish to also include
+                                 factors from the current database**''')
         # Joins with stored data if required
-        if join_files and factors is not None:
+        if join_files and len(factors) > 0:
             factors = pd.concat([own_factors_df, factors])
         else:
             factors = own_factors_df
@@ -753,15 +759,16 @@ if upload_factors:
                 st.success('Done!')
 
 if factors is not None:
+    # Creates list of available factors to choose from
+    available_factor = factors['component'].to_list()
+    # Removes duplicates
+    available_factor = list(dict.fromkeys(available_factor))
     try:
-        # Creates list of available factors to choose from
-        available_factor = factors['component'].to_list()
-        available_factor = list(dict.fromkeys(available_factor))
-        available_factor = [word.capitalize() for word in available_factor]
-        available_factor.append('Other')  # Adds option for other
-    except KeyError:  # Prevents error if wrong format used
-        st.error('Error: Incorrect factors file format.')
+        available_factor = [word.title() for word in available_factor]
+    except AttributeError:
+        st.error(f'''Error: Incorrect format for component name.''')
         exit_program()
+    available_factor.append('Other')  # Adds option for other
 else:
     exit_program()
 
@@ -782,7 +789,7 @@ decon_names_all = list(decon_units.keys())
 decon_names = []
 for ind, nm in enumerate(decon_names_all):
     if (ind % 3) == 0:
-        decon_names.append(nm[:-12].capitalize())
+        decon_names.append(nm[:-12].title())
 decon_info = False
 decon_type = None
 
@@ -797,13 +804,16 @@ name = st.text_input('Name of Product').lower()  # User can input name
 current_store = [None]  # Lists all products currently in dataframe
 for prod in current_prod:
     if name in prod and prod not in current_store:
-        current_store.append(prod.capitalize())
+        current_store.append(prod.title())
 
 product_categories = []  # Lists all categories in dataframe
 for cat in product_emissions['category'].to_list():
-    cat = cat.capitalize()
+    cat = cat.title()
     if cat not in product_categories:
         product_categories.append(cat)
+if len(product_categories) == 0:
+    st.error('Error: Please populate required files to continue.')
+    exit_program()
 
 # User can choose to select current product in database
 chosen = st.selectbox(f'''Search database for desired product''',
@@ -1036,12 +1046,12 @@ if chosen is None or change_info:
             if own_comp:
                 input_own_factor = True
                 own_fact_text = f'''Input emissions factor (kg CO$_{2}$e / kg)
-                                    for **{curr_comp.capitalize()}**. '''
+                                    for **{curr_comp.title()}**. '''
             else:
                 input_own_factor = st.checkbox(
                     f'Select to input your own factor', key='of_%d'%i)
                 own_fact_text = f'''Input emissions factor (kg CO$_{2}$e / kg)
-                                    for **{curr_comp.capitalize()}**.
+                                    for **{curr_comp.title()}**.
                                     Leave as 0.0 to use value in database.'''
 
             if len(curr_comp) > 0 and input_own_factor:
@@ -1309,7 +1319,7 @@ if chosen is None or change_info:
                 if (~condition.any()) & (~found_comp.any()):
                     new_cc = st.number_input(
                         f'''Input carbon content (%) for
-                        **{curr_comp.capitalize()}**''', value=0.0,
+                        **{curr_comp.title()}**''', value=0.0,
                         min_value=0.0, step=0.001, format='%0.3f',
                         key='cc_%d'%i)
                     # Creates new row in factors dataframe with info
@@ -1395,9 +1405,9 @@ if chosen is None or change_info:
                       use_emissions, reprocess_emissions,
                       net_waste_emissions]
         if len(name) > 0:
-            series_name = f'{name.capitalize()}'
+            series_name = f'{name.title()}'
         elif change_info:
-            series_name = f'{chosen.capitalize()}'
+            series_name = f'{chosen.title()}'
             product['product'] = series_name.lower()
         else:
             series_name = 'Product'

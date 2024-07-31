@@ -106,28 +106,19 @@ def travel_end_loc(df, dest_city, no_comp, cloud):
     return travel_emissions
 
 
-#### READ DISTANCE FILE ####
-def read_distance_file(own_dist_file, travel_dist, cloud, sea=False):
-    own_dist = pd.read_csv(own_dist_file)
-    try:  # Sets file up in the same format
-        own_dist_df = own_dist.set_index(['start_loc', 'end_loc'])
-        travel_dist = pd.concat([travel_dist, own_dist_df])
-        travel_dist = travel_dist.sort_index()
-    except KeyError:  # Stops if wrong type of file used
-        st.error('Error: Incorrect file format.')
-        exit_program()
-
+#### UPDATES DISTANCE FILE ####
+def update_distance_file(own_dist, sea=False):
+    '''Updates distance files using added file.'''
     if sea:
         text = 'Select to add new sea distances to file'
     else:
         text = 'Select to add new land distances to file'
-    if not cloud:
-        if st.checkbox(text):
-            with st.spinner('Updating...'):
-                update.update_travel_distances_from_df(own_dist, sea)
-            st.success('Done!')
+    if st.checkbox(text):
+        with st.spinner('Updating...'):
+            update.update_travel_distances_from_df(own_dist, sea)
+        st.success('Done!')
 
-    return travel_dist
+    return
     
 #### DOWNLOADS ####
 def convert_df(df):
@@ -219,10 +210,17 @@ def format_dataframe(df):
     df_formatted: pd.Dataframe
         Sets index as product and capitalises first letters.
     '''
+    # Adds trailing 0s to columns
+    if df['Reprocessing / kg CO2e'].iloc[0] == 0:
+        df['Reprocessing / kg CO2e'] = df['Reprocessing / kg CO2e']\
+        .astype(float).map('{:.1f}'.format)
+
     # Sets index as name of product
     df_formatted = df.set_index(['Product'])
     # Capitalises product names
-    df_formatted.index = df_formatted.index.str.capitalize()
+    df_formatted.index = df_formatted.index.str.title()
+    # Rounds values then converts all to strings
+    df_formatted = df_formatted.round(decimals=6).astype(str)
 
     return df_formatted
 
@@ -254,6 +252,7 @@ def create_bar_chart(data, w=1000, h=700):
 
     # Takes dataframe and converts information to lists
     name = sorted_data['Product'].to_list()
+    name = [n.title() for n in name]
     make = sorted_data['Manufacturing / kg CO2e'].to_list()
     travel = sorted_data['Transport / kg CO2e'].to_list()
     use = sorted_data['Use / kg CO2e'].to_list()
@@ -350,12 +349,14 @@ decon_names_all = list(decon_units.keys())
 decon_names = []
 for ind, nm in enumerate(decon_names_all):
     if (ind % 3) == 0:
-        decon_names.append(nm[:-12].capitalize())
+        decon_names.append(nm[:-12].title())
 
-#### OPTION TO UPLAOD OWN FILE ####
+#### OPTION TO UPLOAD OWN FILE ####
 st.divider()
-st.markdown(f'#### Upload Own Product File or Update Factors File if Desired')
-uploaded_file = st.file_uploader('Upload own products file if desired.',
+st.markdown(f'#### Upload Own Product File if Desired')
+st.markdown(f'''Perform calculations of products using own .csv file
+                containing product information.''')
+own_prod_file = st.file_uploader('Upload own products file if desired.',
                                  type=['csv'])
 # Additional information stored under a read more option
 with st.expander(f'''Click to view file requirements or to download
@@ -363,26 +364,24 @@ with st.expander(f'''Click to view file requirements or to download
     download_example_file()
     st.markdown(read_file_contents('resources/inventory_own_products.md'))
 
-if uploaded_file is not None:
-    try:  # Reads in uploaded file
-        products = pd.read_csv(uploaded_file)
-    except pd.errors.ParserError:  # Stops if wrong type of file used
-        st.error('Error: Incorrect file format.')
+if own_prod_file is not None:
+    (products, error) = read_data.check_uploaded_product_file(own_prod_file)
+    if error:
         exit_program()
     own_file = True
 else:  # Otherwise uses current database
     own_file = False
+no_comp = int(list(products.columns)[-1].split('_')[-1])
 
-try:  # Finds number of components given the data
-    no_comp = int(list(products.columns)[-1].split('_')[-1])
-except ValueError:  # Stops if wrong type of file used
-    st.error('Error: Incorrect file format.')
-    exit_program()
-
+st.divider()
+st.markdown(f'#### Update Emissions Factors and Distance Files if Desired')
+st.markdown(f'''Update information stored in databases to suit your
+                own file requirements.''')
 #### UPLOAD OWN EMISSIONS FACTORS ####
 own_factors_file = None
 if st.checkbox(f'''Select if you wish to upload your own emissions factors
                file'''):
+    join_files = False
     own_factors_file = st.file_uploader('Upload own emission factors file',
                                         type=['csv'])
     with st.expander(f'''Click to view file requirements or to download
@@ -391,17 +390,14 @@ if st.checkbox(f'''Select if you wish to upload your own emissions factors
         st.markdown(read_file_contents('resources/own_factors.md'))
 
     if own_factors_file is not None:  # Reads uploaded file into pd.DataFrame
-        own_factors_df = pd.read_csv(own_factors_file)
-        try:  # Sets file up in the same format
-            own_factors_df = own_factors_df.set_index(['component', 'loc',
-                                                       'year'])
-            own_factors_df = own_factors_df.sort_index()
-        except KeyError:  # Stops if wrong type of file used
-            st.error('Error: Incorrect factors file format.')
+        (own_factors_df,
+         error) = read_data.check_uploaded_factors_file(
+             own_factors_file, True)
+        if error:
             exit_program()
-        join_files = st.checkbox(f'''Select if you wish to also include
-                                 factors from the current database''')
 
+        join_files = st.checkbox(f'''**Select if you wish to also include
+                                 factors from the current database**''')
         if join_files:  # Joins with stored product database if required
             factors = pd.concat([own_factors_df, factors])
         else:
@@ -426,11 +422,21 @@ if st.checkbox(f'''Select to upload your own distance files. Required if you
         st.markdown(read_file_contents('resources/own_distance.md'))
 
     if own_ldist_file is not None:  # Reads uploaded file into pd.DataFrame
-        land_travel_dist = read_distance_file(own_ldist_file,
-                                              land_travel_dist, cloud)
+        (land_travel_dist, own_ldist,
+         error) = read_data.check_uploaded_distance_file(
+             own_ldist_file, land_travel_dist)
+        if error:
+            exit_program()
+        if not cloud:
+            update_distance_file(own_ldist, sea=False)
     if own_sdist_file is not None:
-        sea_travel_dist = read_distance_file(own_sdist_file, sea_travel_dist,
-                                             cloud, sea=True)
+        (sea_travel_dist, own_sdist,
+         error) = read_data.check_uploaded_distance_file(
+             own_sdist_file, sea_travel_dist)
+        if error:
+            exit_program()
+        if not cloud:
+            update_distance_file(own_sdist, sea=True)
 
 st.divider()
 st.markdown('#### Select Required Information For Calculation')
@@ -451,8 +457,16 @@ decon_type = st.selectbox(
 
 ##### SELECT PRODUCTS TO PLOT #####
 st.write('\n')
+# Removes any extra rows with no listed product to prevent errors
+products.dropna(subset=['product'], inplace=True)
+# Converts entire df into lower case if type str
+products = products.map(lambda s: s.lower() if type(s) == str else s)
 current_prods = products['product'].to_list()  # Creates list of products
-current_prods = [p.capitalize() for p in current_prods]
+if len(current_prods) == 0:
+    st.error('Error: Please populate required files to continue.')
+    exit_program()
+
+current_prods = [p.title() for p in current_prods]
 to_plot = st.multiselect(f'**Select products to appear in comparison graph**',
                          current_prods)
 to_plot = [p.lower() for p in to_plot]  # Needed to access data
@@ -568,7 +582,11 @@ if (st.session_state.calculation is not None and
 
     # Finds which products to plot and extracts from df
     names = list(to_plot)
-    results_plot = results[results['Product'].isin(names)]
+    # Ensures all names are lower case
+    results_inc_trvl['Product'] = results_inc_trvl['Product'].\
+        apply(lambda x: x.lower() if isinstance(x, str) else x)
+    results_plot = results_inc_trvl[results_inc_trvl['Product'].isin(names)]
+
     # Plots bar chart of total emissions from process
     fig = create_bar_chart(results_plot)
     st.plotly_chart(fig)

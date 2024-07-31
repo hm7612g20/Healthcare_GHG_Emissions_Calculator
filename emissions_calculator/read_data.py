@@ -561,3 +561,373 @@ def read_ports():
         uk_ports_list = None
 
     return ports_list, uk_ports_list
+
+#### CHECK FILES UPLOADED BY USER ####
+def check_uploaded_product_file(file):
+    '''Checks that the uploaded products file is in a suitable format.'''
+    error = False
+
+    try:  # Reads in uploaded file
+        df = pd.read_csv(file)
+    except pd.errors.ParserError:  # Stops if wrong type of file used
+        st.error('Error: Cannot read file.')
+        error = True
+        df = None
+
+    header = df.columns.to_list()
+    head_a = ['product', 'category', 'electricity', 'water', 'gas']
+
+    try:
+        no_comp = int(list(df.columns)[-1].split('_')[-1])
+    except ValueError:  # Stops if wrong type of file used
+        st.error(f'''Error: Header formatted incorrectly for numbered
+                     components.''')
+        error = True
+
+    if header[0:5] != head_a:
+        st.error(f'''Error: Header should contain product, category,
+                     electricity, water and gas.''')
+        error = True
+
+    for i in range(no_comp):
+        head_b = ['component_' + str(i+1), 'manu_year_' + str(i+1),
+                  'mass_kg_' + str(i+1), 'no_uses_' + str(i+1),
+                  'biogenic_' + str(i+1), 'manu_loc_' + str(i+1),
+                  'debark_port_' + str(i+1), 'depart_loc_uk_' + str(i+1),
+                  'reprocessing_' + str(i+1), 'recycle_' + str(i+1),
+                  'incinerate_' + str(i+1), 'landfill_' + str(i+1)]
+        to_check = header[(5+(12*i)):(5+(12*i)+12)]
+        if to_check != head_b:
+            st.error(f'''Error: Header does not contain required information
+                         for each component.''')
+            error = True
+
+    if not error:
+        # Removes any extra rows with no listed product to prevent errors
+        df.dropna(subset=['product'], inplace=True)
+
+    check_for = ['0', '0.0', '1', '1.0', 0, 0.0, 1, 1.0]
+    if not error:
+        for ind, row in df.iterrows():
+            for i in range(no_comp):
+                try:
+                    int(row['manu_year_' + str(i+1)])
+                except ValueError:
+                    st.error(f'''Error: Incorrect format for manu_year_{i+1}
+                                 on line {ind+1}.''')
+                    error = True
+
+                try:
+                    float(row['mass_kg_' + str(i+1)])
+                except ValueError:
+                    st.error(f'''Error: Incorrect format for mass_kg_{i+1}
+                                 on line {ind+1}.''')
+                    error = True
+
+                try:
+                    int(row['no_uses_' + str(i+1)])
+                except ValueError:
+                    st.error(f'''Error: Incorrect format for no_uses_{i+1} on
+                                 line {ind+1}.''')
+                    error = True
+
+                if row['biogenic_' + str(i+1)] not in check_for:
+                    st.error(f'''Error: Incorrect format for biogenic_{i+1} on
+                                 line {ind+1}.''')
+                    error = True
+
+                if row['manu_loc_' + str(i+1)] not in check_for:
+                    if '(' not in row['manu_loc_' + str(i+1)] or ')' not in \
+                        row['manu_loc_' + str(i+1)]:
+                        st.error(f'''Error: Incorrect format for
+                                     manu_loc_{i+1} on line {ind+1}.''')
+                        error = True
+
+                if row['debark_port_' + str(i+1)] not in check_for:
+                    if '(' not in row['debark_port_' + str(i+1)] or ')' not \
+                        in row['debark_port_' + str(i+1)]:
+                        st.error(f'''Error: Incorrect format for
+                                     debark_port_{i+1} on line {ind+1}.''')
+                        error = True
+
+                if row['recycle_' + str(i+1)] not in check_for:
+                    st.error(f'''Error: Incorrect format for recycle_{i+1}
+                                 on line {ind+1}.''')
+                    error = True
+
+                if row['incinerate_' + str(i+1)] not in check_for:
+                    st.error(f'''Error: Incorrect format for incinerate_{i+1}
+                                 on line {ind+1}.''')
+                    error = True
+
+                if row['landfill_' + str(i+1)] not in check_for:
+                    st.error(f'''Error: Incorrect format for landfill_{i+1} on
+                                 line {ind+1}.''')
+                    error = True
+
+    return df, no_comp, error
+
+
+def check_uploaded_emissions_file(file):
+    '''Checks that the uploaded emissions file is in a suitable format.'''
+    error = False
+
+    try:  # Reads in uploaded file
+        df = pd.read_csv(file)
+    except pd.errors.ParserError:  # Stops if wrong type of file used
+        st.error('Error: Cannot read file.')
+        error = True
+        df = None
+
+    header = df.columns.to_list()
+
+    try:
+        no_comp = int(list(df.columns)[-7].split('_')[-1])
+    except ValueError:  # Stops if wrong type of file used
+        st.error(f'''Error: Header formatted incorrectly for numbered
+                     components.''')
+        error = True
+
+    head_a = ['product', 'category', 'electricity', 'water', 'gas']
+    if header[0:5] != head_a:
+        st.error(f'''Error: Header should contain product, category,
+                     electricity, water and gas.''')
+        error = True
+
+    for i in range(no_comp):
+        head_b = ['component_' + str(i+1), 'manu_year_' + str(i+1),
+                  'mass_kg_' + str(i+1), 'no_uses_' + str(i+1),
+                  'biogenic_' + str(i+1), 'manu_loc_' + str(i+1),
+                  'debark_port_' + str(i+1), 'depart_loc_uk_' + str(i+1),
+                  'reprocessing_' + str(i+1), 'recycle_' + str(i+1),
+                  'incinerate_' + str(i+1), 'landfill_' + str(i+1)]
+        to_check = header[(5+(12*i)):(5+(12*i)+12)]
+        if to_check != head_b:
+            st.error(f'''Error: Header does not contain required information
+                         for each component.''')
+            error = True
+
+    head_c = ['manufacture_emissions', 'transport_emissions', 'use_emissions',
+              'reprocessing_emissions', 'disposal_emissions',
+              'total_emissions']
+    if header[-6:] != head_c:
+        st.error(f'''Error: Header should contain manufacture_emissions,
+                 transport_emissions, use_emissions, reprocessing_emissions,
+                 disposal_emissions and total_emissions.''')
+        error = True
+
+    if not error:
+        # Removes any extra rows with no listed product to prevent errors
+        df.dropna(subset=['product'], inplace=True)
+
+    check_for = ['0', '0.0', '1', '1.0', 0, 0.0, 1, 1.0]
+    if not error:
+        for ind, row in df.iterrows():
+            try:
+                float(row['manufacture_emissions'])
+            except ValueError:
+                st.error(f'''Error: Incorrect format for manufacture_emissions
+                             on line {ind+1}.''')
+                error = True
+
+            try:
+                float(row['transport_emissions'])
+            except ValueError:
+                st.error(f'''Error: Incorrect format for transport_emissions
+                             on line {ind+1}.''')
+                error = True
+
+            try:
+                float(row['use_emissions'])
+            except ValueError:
+                st.error(f'''Error: Incorrect format for use_emissions
+                             on line {ind+1}.''')
+                error = True
+
+            try:
+                float(row['reprocessing_emissions'])
+            except ValueError:
+                st.error(f'''Error: Incorrect format for
+                             reprocessing_emissions on line {ind+1}.''')
+                error = True
+
+            try:
+                float(row['disposal_emissions'])
+            except ValueError:
+                st.error(f'''Error: Incorrect format for disposal_emissions
+                             on line {ind+1}.''')
+                error = True
+
+            try:
+                float(row['total_emissions'])
+            except ValueError:
+                st.error(f'''Error: Incorrect format for total_emissions
+                             on line {ind+1}.''')
+                error = True
+
+            for i in range(no_comp):
+                try:
+                    int(row['manu_year_' + str(i+1)])
+                except ValueError:
+                    st.error(f'''Error: Incorrect format for manu_year_{i+1}
+                                 on line {ind+1}.''')
+                    error = True
+
+                try:
+                    float(row['mass_kg_' + str(i+1)])
+                except ValueError:
+                    st.error(f'''Error: Incorrect format for mass_kg_{i+1}
+                                 on line {ind+1}.''')
+                    error = True
+
+                try:
+                    int(row['no_uses_' + str(i+1)])
+                except ValueError:
+                    st.error(f'''Error: Incorrect format for no_uses_{i+1} on
+                                 line {ind+1}.''')
+                    error = True
+
+                if row['biogenic_' + str(i+1)] not in check_for:
+                    st.error(f'''Error: Incorrect format for biogenic_{i+1} on
+                                 line {ind+1}.''')
+                    error = True
+
+                if row['manu_loc_' + str(i+1)] not in check_for:
+                    if '(' not in row['manu_loc_' + str(i+1)] or ')' not in \
+                        row['manu_loc_' + str(i+1)]:
+                        st.error(f'''Error: Incorrect format for
+                                     manu_loc_{i+1} on line {ind+1}.''')
+                        error = True
+
+                if row['debark_port_' + str(i+1)] not in check_for:
+                    if '(' not in row['debark_port_' + str(i+1)] or ')' not \
+                        in row['debark_port_' + str(i+1)]:
+                        st.error(f'''Error: Incorrect format for
+                                     debark_port_{i+1} on line {ind+1}.''')
+                        error = True
+
+                if row['recycle_' + str(i+1)] not in check_for:
+                    st.error(f'''Error: Incorrect format for recycle_{i+1}
+                                 on line {ind+1}.''')
+                    error = True
+
+                if row['incinerate_' + str(i+1)] not in check_for:
+                    st.error(f'''Error: Incorrect format for incinerate_{i+1}
+                                 on line {ind+1}.''')
+                    error = True
+
+                if row['landfill_' + str(i+1)] not in check_for:
+                    st.error(f'''Error: Incorrect format for landfill_{i+1} on
+                                 line {ind+1}.''')
+                    error = True
+
+    return df, error
+
+
+def check_uploaded_factors_file(file, change_ind):
+    '''Checks that the uploaded factors file is in a suitable format.'''
+    error = False
+
+    try:  # Reads in uploaded file
+        df = pd.read_csv(file)
+    except pd.errors.ParserError:  # Stops if wrong type of file used
+        st.error('Error: Cannot read file.')
+        error = True
+        df = None
+
+    header = df.columns.to_list()
+    head_a = ['component', 'loc', 'year', 'unit', 'factor_kgCO2eq_unit',
+              'carbon_content', 'source']
+
+    if header != head_a:
+        st.error(f'''Error: Header should contain component, loc, year, unit,
+                     factor_kgCO2eq_unit, carbon_content and source.''')
+        error = True
+
+    if not error:
+        # Removes any extra rows with no listed component to prevent errors
+        df.dropna(subset=['component'], inplace=True)
+
+    if not error:
+        for ind, row in df.iterrows():
+            try:
+                int(row['year'])
+            except ValueError:
+                st.error(f'Error: Incorrect format for year on line {ind+1}.')
+                error = True
+
+            try:
+                float(row['factor_kgCO2eq_unit'])
+            except ValueError:
+                st.error(f'''Error: Incorrect format for factor_kgCO2eq_unit
+                             on line {ind+1}.''')
+                error = True
+
+            try:
+                cc = float(row['carbon_content'])
+                if cc < 0.0 or cc > 1.0:
+                    st.error(f'''Error: Carbon content not between 0 and 1 on
+                                 line {ind+1}.''')
+                    error = True
+            except ValueError:
+                st.error(f'''Error: Incorrect format for carbon_content
+                             on line {ind+1}.''')
+                error = True
+
+    if not error and change_ind:
+        df = df.set_index(['component', 'loc', 'year'])
+        df = df.sort_index()
+
+    return df, error
+
+
+def check_uploaded_distance_file(file, travel_dist):
+    '''Checks that the uploaded distance file is in a suitable format.'''
+    error = False
+
+    try:  # Reads in uploaded file
+        df = pd.read_csv(file)
+    except pd.errors.ParserError:  # Stops if wrong type of file used
+        st.error('Error: Cannot read file.')
+        error = True
+        df = None
+
+    header = df.columns.to_list()
+    head_a = ['start_loc', 'end_loc', 'distance_km']
+
+    if header != head_a:
+        st.error(f'''Error: Header should contain start_loc, end_loc and
+                     distance_km.''')
+        error = True
+
+    if not error:
+        # Removes any extra rows with no listed start loc to prevent errors
+        df.dropna(subset=['start_loc'], inplace=True)
+
+    if not error:
+        for ind, row in df.iterrows():
+            if '(' not in row['start_loc'] or ')' not in row['start_loc']:
+                st.error(f'''Error: Incorrect format for start loc on line
+                             {ind+1}.''')
+                error = True
+
+            if '(' not in row['end_loc'] or ')' not in row['end_loc']:
+                st.error(f'''Error: Incorrect format for end loc on line
+                             {ind+1}.''')
+                error = True
+
+            try:
+                float(row['distance_km'])
+            except ValueError:
+                st.error(f'''Error: Incorrect format for distance_km
+                             on line {ind+1}.''')
+                error = True
+
+    if not error:
+        # Sets file up in the same format
+        df = df.set_index(['start_loc', 'end_loc'])
+        own_df = df.sort_index()
+        travel_dist = pd.concat([travel_dist, df])
+        travel_dist = travel_dist.sort_index()
+
+    return travel_dist, own_df, error

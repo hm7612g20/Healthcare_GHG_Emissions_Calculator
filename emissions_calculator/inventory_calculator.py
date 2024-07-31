@@ -125,8 +125,8 @@ def extract_best_factor(factors, comp, loc, year, need_cc, country,
     searched_all: bool
         If country is selected but specific factor not available, it then
         searches based on whether it is made in Europe or the rest of the
-        world so tries again. Then it tries world. If cannot find information,
-        it prints out an error message.
+        world so tries again. Then it tries global. If cannot find the
+        information, it prints out an error message.
 
     Returns:
     --------
@@ -173,7 +173,7 @@ def extract_best_factor(factors, comp, loc, year, need_cc, country,
                 if not need_cc:
                     st.error(f'''{prod.title()}: No factor available for
                              **{comp.title()}** in {country.title()},
-                             {region.title()} or World. 0.0 will be used.''')
+                             {region.title()} or Global. 0.0 will be used.''')
 
     return fact, found
 
@@ -288,8 +288,8 @@ def manufacture_calc(products, factors, no_comp, dest_city):
                         factors, comp, loc, year, need_cc, country, prod,
                         searched_all=False)
                     if fact is None:
-                        # If still not found, tries world
-                        loc = 'world'
+                        # If still not found, tries global
+                        loc = 'glo'
                         fact, found = extract_best_factor(
                             factors, comp, loc, year, need_cc, country, prod,
                             searched_all=True)
@@ -378,7 +378,7 @@ def calc_sea_distance(sea_travel_dist, start_port, end_port):
         except (ValueError, AttributeError) as e:
             sea_dist_km = 0
             st.error(f'''Error: Could not find ports: {start_port.title()}
-                         and/or {end_port}.''')
+                         and/or {end_port.title()}.''')
 
     return sea_dist_km
 
@@ -612,7 +612,7 @@ def product_use_calc(products, no_comp, additional_factors, product_year):
 
         use_em = 0.0
         # Calculates emissions from water use
-        if water != '0' and water != '0.0':
+        if water != '0' and water != '0.0' and water != 'nan':
             try:  # Extracts water used
                 vol = float(water[water.find('(')+1:water.find(')')])
                 use_em += water_factor * (vol / 1000)
@@ -620,7 +620,7 @@ def product_use_calc(products, no_comp, additional_factors, product_year):
                 st.error(f'Incorrect format for water use for product '
                          f'{name}.')
         # Calculates emissions from electricity use
-        if elec != '0' and elec != '0.0':
+        if elec != '0' and elec != '0.0' and elec != 'nan':
             try:  # Extracts time on and power
                 power = float(elec[elec.find('(')+1:elec.find(' ')])
                 time = float(elec[elec.find(' ')+1:elec.find(')')])
@@ -630,7 +630,7 @@ def product_use_calc(products, no_comp, additional_factors, product_year):
                 st.error(f'Incorrect format for electricity use for '
                          f'product {name}.')
         # Calculates emissions from gas use
-        if gas != '0' and gas != '0.0':
+        if gas != '0' and gas != '0.0' and gas != 'nan':
             try:  # Extracts volume of gas used
                 vol = float(gas[gas.find('(')+1:gas.find(')')])
                 use_em += gas_factor * vol
@@ -881,8 +881,8 @@ def disposal_calc(products, factors, no_comp, additional_factors,
                         searched_all=False)
 
                     if cc is None:
-                        # If still not found, tries world
-                        loc = 'world'
+                        # If still not found, tries global
+                        loc = 'glo'
                         cc, found = extract_best_factor(
                             factors, comp, loc, year, need_cc, country, prod,
                             searched_all=True)

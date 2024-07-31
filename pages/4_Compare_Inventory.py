@@ -311,7 +311,9 @@ for ind, nm in enumerate(decon_names_all):
         decon_names.append(nm[:-12].capitalize())
 
 st.divider()
-st.markdown('#### Update Emissions Factors if Desired')
+st.markdown(f'#### Update Emissions Factors and Distance Files if Desired')
+st.markdown(f'''Update information stored in databases to suit your
+                own requirements.''')
 #### UPLOAD OWN EMISSIONS FACTORS ####
 own_factors_file = None
 if st.checkbox(f'''Select if you wish to upload your own emissions factors
@@ -320,21 +322,18 @@ if st.checkbox(f'''Select if you wish to upload your own emissions factors
         f'Upload your own emissions factors file if required', type=['csv'])
     with st.expander(f'''Click to view file requirements or to download
                          empty example file'''):
-        download_example_file(key='factors')
+        download_example_file(name='factors', key='f')
         st.markdown(read_file_contents('resources/own_factors.md'))
 
     if own_factors_file is not None:  # Reads uploaded file into pd.DataFrame
-        own_factors_df = pd.read_csv(own_factors_file)
-        try:  # Sets file up in the same format
-            own_factors_df = own_factors_df.set_index(['component', 'loc',
-                                                       'year'])
-            own_factors_df = own_factors_df.sort_index()
-        except KeyError:  # Stops if wrong type of file used
-            st.error('Error: Incorrect factors file format.')
+        (own_factors_df,
+         error) = read_data.check_uploaded_factors_file(
+             own_factors_file, True)
+        if error:
             exit_program()
-        join_files = st.checkbox(f'''Select if you wish to also include
-                                 factors from the current database''')
 
+        join_files = st.checkbox(f'''**Select if you wish to also include
+                                 factors from the current database**''')
         if join_files:  # Joins with stored data if requested
             factors = pd.concat([own_factors_df, factors])
         else:
@@ -342,29 +341,37 @@ if st.checkbox(f'''Select if you wish to upload your own emissions factors
 
 #### UPLOAD NEW LAND TRAVEL DISTANCE ####
 own_dist_file = None
-if st.checkbox(f'''Select if you are getting **Error: Journey not listed in
-                   file** to upload your own distances'''):
-    own_dist_file = st.file_uploader('Upload own land travel distance file',
-                                         type=['csv'])
+if st.checkbox(f'''Select to upload your own distance files. Required if you
+               are getting **Error: Journey not listed in file**'''):
+    own_ldist_file = st.file_uploader('Upload own land travel distance file',
+                                      type=['csv'])
+    own_sdist_file = st.file_uploader('Upload own sea travel distance file',
+                                      type=['csv'])
     with st.expander(f'''Click to view file requirements or to download
                      empty example file'''):
-        download_example_file(key='distance')
+        download_example_file(name='distance', key='d')
         st.markdown(read_file_contents('resources/own_distance.md'))
 
-    if own_dist_file is not None:  # Reads uploaded file into pd.DataFrame
-        own_dist_df = pd.read_csv(own_dist_file)
-        try:  # Sets file up in the same format
-            own_dist_df = own_dist_df.set_index(['start_loc', 'end_loc'])
-            own_dist_df = own_dist_df.sort_index()
-            land_travel_dist = pd.concat([land_travel_dist, own_dist_df])
-        except KeyError:  # Stops if wrong type of file used
-            st.error('Error: Incorrect file format.')
+    if own_ldist_file is not None:  # Reads uploaded file into pd.DataFrame
+        (land_travel_dist,
+         error) = read_data.check_uploaded_distance_file(
+             own_ldist_file, land_travel_dist)
+        if error:
+            exit_program()
+    if own_sdist_file is not None:
+        (sea_travel_dist,
+         error) = read_data.check_uploaded_distance_file(
+             own_sdist_file, sea_travel_dist)
+        if error:
             exit_program()
 
 st.divider()
 st.markdown('#### Select Products to Compare')
 ##### SELECT PRODUCTS TO COMPARE #####
 current_prods = products['product'].to_list()
+if len(current_prods) == 0:
+    st.error('Error: Please populate required files to continue.')
+    exit_program()
 current_prods = [p.capitalize() for p in current_prods]
 all_compare = st.checkbox(f'''Select to change charcteristics of all
                           products in database''')
