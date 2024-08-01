@@ -1100,14 +1100,14 @@ if chosen is None or change_info:
                     prev_mass = all_info[7+((i-1)*14)]
                     mass = st.number_input(
                         f'Enter component mass in kg', min_value=0.0,
-                        step=0.01, value=prev_mass, format='%0.5f',
+                        step=0.01, value=prev_mass, format='%0.8f',
                         key='mass_%d'%i)
                 else:
                     mass_val = 0.0 if not autofill else \
                                    selected_auto['mass_' + str(i+1)]
                     mass = st.number_input(
                         f'Enter component mass in kg', min_value=0.0,
-                        step=0.01, value=mass_val, format='%0.5f',
+                        step=0.01, value=mass_val, format='%0.8f',
                         key='mass_%d'%i)
                 all_info.append(mass)
 
