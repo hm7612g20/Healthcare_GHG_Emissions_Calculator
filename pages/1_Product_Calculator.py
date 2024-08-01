@@ -623,13 +623,13 @@ with st.spinner('Loading data...'):
         factors = read_data.read_factors()  # Reads in factors file
         # Reads other factors such as travel and electricity/water/gas
         additional_factors = read_data.read_additional_factors()
-    
+
         # Inventory file and emissions
         product_data = read_data.read_products()
         product_emissions = read_data.read_emissions()
         open_emissions = read_data.read_open_source_emissions()
         check_data(open_emissions)
-    
+
         # Reads in travel distances
         land_travel_dist, sea_travel_dist = read_data.read_travel_dist()
 
@@ -689,9 +689,13 @@ defra_years_in_file = defra_yrs['year'].to_list()
 with st.expander(f'''Click to add new Defra file or change reprocessing
                      factors.'''):
     st.markdown(f'''Defra used for: transport, electricity, water, gas and
-                    landfill emissions factors.''')
+                landfill emissions factors (see references page for
+                details).''')
     st.markdown(f'''**Upload Defra file if not currently in database.**
                     Database contains years: {defra_years_in_file}''')
+    st.markdown(f'''*While this works for the years given above, it is not
+                guaranteed that it will work for future files if the format
+                of the file changes.*''')
     defra_file = st.file_uploader('Choose Defra file', type=['xlsx'])
     if defra_file is not None:
         defra_year = st.number_input(f'Enter file year', min_value=2000,
@@ -710,6 +714,7 @@ with st.expander(f'''Click to add new Defra file or change reprocessing
     # User can input another deconcomination unit and elec/water/gas use
     st.markdown(f'**Use another decontamination unit.**')
     new_decon_name = st.text_input(f'Name of unit').lower()
+    st.markdown(f'*Enter details below for one decontamination cycle.*')
     new_decon_elec = st.number_input(f'Electricity use (kWh)',
                                      min_value=0.0, step=0.0001,
                                      format='%0.4f')
@@ -768,7 +773,7 @@ if factors is not None:
     except AttributeError:
         st.error(f'''Error: Incorrect format for component name.''')
         exit_program()
-    available_factor.append('Other')  # Adds option for other
+    available_factor.append('Enter Manually')  # Adds option for other
 else:
     exit_program()
 
@@ -905,448 +910,479 @@ if chosen is None or change_info:
             st.divider()
             st.markdown(f'#### Product Information')
 
-        #### WHOLE PRODUCT INFO ####
-        # User selects category
-        cat_ind = 0 if not change_info else selected_auto['cat']
-        cat = st.selectbox(f'Select product category', product_categories,
-                           index=cat_ind).lower()
-        all_info.append(cat)
+        with st.form('product_input'):
+            #### WHOLE PRODUCT INFO ####
+            # User selects category
+            cat_ind = 0 if not change_info else selected_auto['cat']
+            cat = st.selectbox(f'Select product category', product_categories,
+                               index=cat_ind).lower()
+            all_info.append(cat)
 
-        # User inputs number of uses of product
-        use_ind = 1 if not change_info else selected_auto['no_uses']
-        no_uses = st.number_input(
-            f'Select number of times product can be used', min_value=1,
-            step=10, value=use_ind)
+            # User inputs number of uses of product
+            use_ind = 1 if not change_info else selected_auto['no_uses']
+            no_uses = st.number_input(
+                f'Select number of times product can be used', min_value=1,
+                step=10, value=use_ind)
 
-        # User selects year of product use
-        use_year = st.number_input(
-            f'Select year of product use', min_value=1970, max_value=year,
-            value=year, step=1)
+            # User selects year of product use
+            use_year = st.number_input(
+                f'Select year of product use', min_value=1970, max_value=year,
+                value=year, step=1)
 
-        #### USE EMISSIONS - ELECTRICITY ####
-        use_emissions = 0.0
+            #### USE EMISSIONS - ELECTRICITY ####
+            st.markdown(f'''*After selection of checkboxes below, click
+                            "Apply Changes" to enter details*''')
+            use_emissions = 0.0
 
-        elec_val = False
-        t_val = 0.0
-        pr_val = 0.0
-        if change_info:
-            e_auto = selected_auto['elec']
-            if e_auto != '0':
-                elec_val = True
-                # Extracts saved info about elec use (time and power)
-                e_info = e_auto[e_auto.find('(')+1:e_auto.find(')')]
-                t_val = float(e_info[:e_info.find(' ')])
-                pr_val = float(e_info[e_info.find(' ')+1:])
-        electricity = st.checkbox(f'''Product uses electricity
-                                  during lifetime''', value=elec_val)
-        pr = None
-        t = None
-        if electricity:  # User can specify/change time on and power rating
-            t = st.number_input(f'Time on during use (hr)', value=t_val,
-                                min_value=0.0, step=0.001, format='%0.5f')
-            pr = st.number_input(f'Power rating (W)', value=pr_val,
-                                 min_value=0.0, step=0.001, format='%0.3f')
-            use_emissions += calc.use_calc(additional_factors, use_year,
-                                           power_rating=pr, time_per_use=t)
-        all_info.append('1 (' + str(t) + ' ' + str(pr) + ')' if electricity
-                        else '0')
+            elec_val = False
+            t_val = 0.0
+            pr_val = 0.0
+            if change_info:
+                e_auto = selected_auto['elec']
+                if e_auto != '0':
+                    elec_val = True
+                    # Extracts saved info about elec use (time and power)
+                    e_info = e_auto[e_auto.find('(')+1:e_auto.find(')')]
+                    t_val = float(e_info[:e_info.find(' ')])
+                    pr_val = float(e_info[e_info.find(' ')+1:])
+            electricity = st.checkbox(f'''Product uses electricity
+                                      during use phase''', value=elec_val)
+            pr = None
+            t = None
+            if electricity:  # User can specify/change time on & power rating
+                t = st.number_input(
+                    f'Time on during use (hr)', value=t_val, min_value=0.0,
+                    step=0.001, format='%0.5f')
+                pr = st.number_input(
+                    f'Power rating (W)', value=pr_val, min_value=0.0,
+                    step=0.001, format='%0.3f')
+                use_emissions += calc.use_calc(
+                    additional_factors, use_year, power_rating=pr,
+                    time_per_use=t)
+            all_info.append('1 (' + str(t) + ' ' + str(pr) + ')' if
+                            electricity else '0')
 
-        #### USE EMISSIONS - WATER ####
-        water_val = False
-        w_val = 0.0
-        if change_info:
-            w_auto = selected_auto['water']
-            if w_auto != '0':
-                water_val = True
-                w_val = float(w_auto[w_auto.find('(')+1:w_auto.find(')')])
-        water = st.checkbox('Product uses water during lifetime',
-                            value=water_val)
-        w = None
-        if water:  # User can specify/change water use
-            w = st.number_input(f'Amount of water used per use (L)',
-                                min_value=0.0, step=0.001, value=w_val,
-                                format='%0.5f')
-            use_emissions += calc.use_calc(additional_factors,
-                                           use_year, water_vol_per_use=w)
-        all_info.append('1 (' + str(w) + ')' if water else '0')
+            #### USE EMISSIONS - WATER ####
+            water_val = False
+            w_val = 0.0
+            if change_info:
+                w_auto = selected_auto['water']
+                if w_auto != '0':
+                    water_val = True
+                    w_val = float(w_auto[w_auto.find('(')+1:w_auto.find(')')])
+            water = st.checkbox('Product uses water during use phase',
+                                value=water_val)
+            w = None
+            if water:  # User can specify/change water use
+                w = st.number_input(f'Amount of water used per use (L)',
+                                    min_value=0.0, step=0.001, value=w_val,
+                                    format='%0.5f')
+                use_emissions += calc.use_calc(additional_factors,
+                                               use_year, water_vol_per_use=w)
+            all_info.append('1 (' + str(w) + ')' if water else '0')
 
-        #### USE EMISSIONS - GAS ####
-        gas_val = False
-        g_val = 0.0
-        if change_info:
-            g_auto = selected_auto['gas']
-            if g_auto != '0':
-                gas_val = True
-                g_val = float(g_auto[g_auto.find('(')+1:g_auto.find(')')])
-        gas = st.checkbox('Product uses gas during lifetime',
-                          value=gas_val)
-        g = None
-        if gas:  # User can specify/change gas use
-            g = st.number_input(f'Amount of gas used per use (m$^{3}$)',
-                                min_value=0.0, step=0.001, value=g_val,
-                                format='%0.5f')
-            use_emissions += calc.use_calc(additional_factors, use_year,
-                                           gas_per_use=g)
-        all_info.append('1 (' + str(g) + ')' if gas else '0')
+            #### USE EMISSIONS - GAS ####
+            gas_val = False
+            g_val = 0.0
+            if change_info:
+                g_auto = selected_auto['gas']
+                if g_auto != '0':
+                    gas_val = True
+                    g_val = float(g_auto[g_auto.find('(')+1:g_auto.find(')')])
+            gas = st.checkbox('Product uses gas during use phase',
+                              value=gas_val)
+            g = None
+            if gas:  # User can specify/change gas use
+                g = st.number_input(f'Amount of gas used per use (m$^{3}$)',
+                                    min_value=0.0, step=0.001, value=g_val,
+                                    format='%0.5f')
+                use_emissions += calc.use_calc(additional_factors, use_year,
+                                               gas_per_use=g)
+            all_info.append('1 (' + str(g) + ')' if gas else '0')
 
-        #### INDIVIDUAL COMPONENTS OF PRODUCT ####
-        for i in range(no_comp):  # User inputs info about each component
-            new_index = [f'component_{i+1}', f'manu_year_{i+1}',
-                         f'mass_kg_{i+1}', f'no_uses_{i+1}',
-                         f'biogenic_{i+1}', f'manu_loc_{i+1}',
-                         f'debark_port_{i+1}', f'depart_loc_uk_{i+1}',
-                         f'land_dist_{i+1}', f'sea_dist_{i+1}',
-                         f'reprocessing_{i+1}', f'recycle_{i+1}',
-                         f'incinerate_{i+1}', f'landfill_{i+1}']
-            index_names += new_index
+            #### INDIVIDUAL COMPONENTS OF PRODUCT ####
+            for i in range(no_comp):  # User inputs info about each component
+                new_index = [f'component_{i+1}', f'manu_year_{i+1}',
+                             f'mass_kg_{i+1}', f'no_uses_{i+1}',
+                             f'biogenic_{i+1}', f'manu_loc_{i+1}',
+                             f'debark_port_{i+1}', f'depart_loc_uk_{i+1}',
+                             f'land_dist_{i+1}', f'sea_dist_{i+1}',
+                             f'reprocessing_{i+1}', f'recycle_{i+1}',
+                             f'incinerate_{i+1}', f'landfill_{i+1}']
+                index_names += new_index
 
-            st.divider()
-            st.markdown(f'##### Component {i+1}')
+                st.divider()
+                st.markdown(f'##### Component {i+1}')
 
-            # User selects if it is single use packaging
-            packaging = st.checkbox(
-                'Component is single-use packaging', key='pck_%d'%i)
+                # User selects if it is single use packaging
+                packaging = st.checkbox(
+                    'Component is single-use packaging', key='pck_%d'%i)
 
-            # Specify if need to autofill info stored in database
-            if change_info and i <= (selected_auto['no_comp'] - 1):
-                autofill = True
-            else:
-                autofill = False
+                # Specify if need to autofill info stored in database
+                if change_info and i <= (selected_auto['no_comp'] - 1):
+                    autofill = True
+                else:
+                    autofill = False
 
-            #### COMPONENT OF PRODUCT ####
-            # Chooses component from available factors
-            comp_ind = 0 if not autofill else \
-                selected_auto['comp_' + str(i+1)]
-            curr_comp = st.selectbox(f'Select component {i+1}',
-                                     available_factor, index=comp_ind,
-                                     key='comp_%d'%i).lower()
-            curr_process = False
-            own_comp = False
+                #### COMPONENT OF PRODUCT ####
+                # Chooses component from available factors
+                comp_ind = 0 if not autofill else \
+                    selected_auto['comp_' + str(i+1)]
+                curr_comp = st.selectbox(f'Select component {i+1}',
+                                         available_factor, index=comp_ind,
+                                         key='comp_%d'%i).lower()
+                st.markdown(f'''> *Please note: Component emissions factors
+                            refer to cradle to factory gate in raw material
+                            form, so in some cases, separate factors should
+                            be added for production of finished product
+                            (e.g. injection moulding)*''')
+                curr_process = False
+                own_comp = False
 
-            # If other, user inputs name
-            if curr_comp == 'other':
-                own_comp = True
-                curr_comp = st.text_input('Name of component',
-                                          key='name_%d'%i).lower().strip()
-                # User describes if it is a process (e.g. weaving cotton)
-                new_process = st.checkbox(
-                    f'Select if factor describes process (e.g. weaving)',
-                    key='np_%d'%i)
-                if new_process:
-                    processes_list.append(curr_comp)
+                # If other, user inputs name
+                if curr_comp == 'enter manually':
+                    own_comp = True
+                    curr_comp = st.text_input('Name of component/process',
+                                              key='name_%d'%i).lower().strip()
+                    # User describes if it is a process (e.g. weaving cotton)
+                    new_process = st.checkbox(
+                        f'Select if factor describes process (e.g. weaving)',
+                        key='np_%d'%i)
+                    if new_process:
+                        processes_list.append(curr_comp)
 
-            # Not all info required if it is a process
-            if curr_comp in process_list:
-                curr_process = True
-            all_info.append(curr_comp)
+                # Not all info required if it is a process
+                if curr_comp in process_list:
+                    curr_process = True
+                all_info.append(curr_comp)
 
-            #### INPUT OWN INDIVIDUAL FACTORS ####
-            # Can input your own factors if desired
-            new_fact = 0.0
-            if own_comp:
-                input_own_factor = True
-                own_fact_text = f'''Input emissions factor (kg CO$_{2}$e / kg)
-                                    for **{curr_comp.title()}**. '''
-            else:
-                input_own_factor = st.checkbox(
-                    f'Select to input your own factor', key='of_%d'%i)
-                own_fact_text = f'''Input emissions factor (kg CO$_{2}$e / kg)
-                                    for **{curr_comp.title()}**.
+                #### INPUT OWN INDIVIDUAL FACTORS ####
+                # Can input your own factors if desired
+                new_fact = 0.0
+                if own_comp:
+                    input_own_factor = True
+                    own_fact_text = f'''Input emissions factor (kg CO$_{2}$e /
+                                         kg) for **{curr_comp.title()}**. '''
+                else:
+                    input_own_factor = st.checkbox(
+                        f'''Select to input your own factor (*after selection,
+                        click "Apply Changes" to enter details*)''',
+                        key='of_%d'%i)
+                    own_fact_text = f'''Input emissions factor (kg CO$_{2}$e /
+                                    kg) for **{curr_comp.title()}**.
                                     Leave as 0.0 to use value in database.'''
 
-            if len(curr_comp) > 0 and input_own_factor:
-                new_fact = st.number_input(own_fact_text, value=0.0,
-                                           min_value=0.0, step=0.001,
-                                           format='%0.5f', key='fact_%d'%i)
+                if len(curr_comp) > 0 and input_own_factor:
+                    new_fact = st.number_input(
+                        own_fact_text, value=0.0, min_value=0.0, step=0.001,
+                        format='%0.5f', key='fact_%d'%i)
 
-            #### YEAR OF MANUFACTURE ####
-            # User selects year of product manufacture
-            if i == 0 or change_info:
-                comp_val = year if not autofill else \
-                               selected_auto['yr_' + str(i+1)]
-                year_prod = st.number_input(
-                    f'Select year of component manufacture', min_value=1970,
-                    max_value=year, value=comp_val, step=1, key='yr_%d'%i)
-            else:  # Autofills value of previous component
-                prev_yr = all_info[6+((i-1)*14)]
-                year_prod = st.number_input(
-                    f'Year of component manufacture', min_value=1970,
-                    max_value=year, value=prev_yr, step=1, key='yr_%d'%i)
-            all_info.append(year_prod)
-
-            #### MASS OF COMPONENT ####
-            # User inputs product mass
-            if i != 0 and curr_process and not change_info:
-                # Autofills as prev mass for process
-                prev_mass = all_info[7+((i-1)*14)]
-                mass = st.number_input(
-                    f'Enter component mass in kg', min_value=0.0, step=0.01,
-                    value=prev_mass, format='%0.5f', key='mass_%d'%i)
-            else:
-                mass_val = 0.0 if not autofill else \
-                               selected_auto['mass_' + str(i+1)]
-                mass = st.number_input(
-                    f'Enter component mass in kg', min_value=0.0, step=0.01,
-                    value=mass_val, format='%0.5f', key='mass_%d'%i)
-            all_info.append(mass)
-
-            #### NUMBER OF USES ####
-            # Saves number of uses depending if it is single-use packaging
-            if packaging:
-                all_info.append(1)
-            else:
-                all_info.append(no_uses)
-
-            # Info only required if it is not a process (e.g. weaving cotton)
-            if not curr_process:
-                #### BIOGENIC COMPONENT ####
-                # User can select if it has a biogenic component
-                bio_val = False if not autofill else \
-                              selected_auto['bio_' + str(i+1)]
-                biogenic = st.checkbox('Biogenic component', value=bio_val,
-                                       key='bio_%d'%i)
-                all_info.append(1 if biogenic else 0)
-
-                #### TRAVEL INFO ####
-                #### LOCATION OF MANUFACTURE ####
-                # User selects travel information for component
+                #### YEAR OF MANUFACTURE ####
+                # User selects year of product manufacture
                 if i == 0 or change_info:
+                    comp_val = year if not autofill else \
+                                   selected_auto['yr_' + str(i+1)]
+                    year_prod = st.number_input(
+                        f'Select year of component manufacture',
+                        min_value=1970, max_value=year, value=comp_val,
+                        step=1, key='yr_%d'%i)
+                else:  # Autofills value of previous component
+                    prev_yr = all_info[6+((i-1)*14)]
+                    year_prod = st.number_input(
+                        f'Year of component manufacture', min_value=1970,
+                        max_value=year, value=prev_yr, step=1, key='yr_%d'%i)
+                all_info.append(year_prod)
+
+                #### MASS OF COMPONENT ####
+                # User inputs product mass
+                if i != 0 and curr_process and not change_info:
+                    # Autofills as prev mass for process
+                    prev_mass = all_info[7+((i-1)*14)]
+                    mass = st.number_input(
+                        f'Enter component mass in kg', min_value=0.0,
+                        step=0.01, value=prev_mass, format='%0.5f',
+                        key='mass_%d'%i)
+                else:
+                    mass_val = 0.0 if not autofill else \
+                                   selected_auto['mass_' + str(i+1)]
+                    mass = st.number_input(
+                        f'Enter component mass in kg', min_value=0.0,
+                        step=0.01, value=mass_val, format='%0.5f',
+                        key='mass_%d'%i)
+                all_info.append(mass)
+
+                #### NUMBER OF USES ####
+                # Saves number of uses depending if it is single-use packaging
+                if packaging:
+                    all_info.append(1)
+                else:
+                    all_info.append(no_uses)
+
+                # Info only required if not a process (e.g. weaving cotton)
+                if not curr_process:
+                    #### BIOGENIC COMPONENT ####
+                    # User can select if it has a biogenic component
+                    bio_val = False if not autofill else \
+                                  selected_auto['bio_' + str(i+1)]
+                    biogenic = st.checkbox(
+                        'Biogenic component', value=bio_val, key='bio_%d'%i)
+                    all_info.append(1 if biogenic else 0)
+
+                    #### TRAVEL INFO ####
+                    #### LOCATION OF MANUFACTURE ####
+                    # User selects travel information for component
+                    if i == 0 or change_info:
+                        sh_ind = cities_list.index('Shanghai (China)')
+                        ml_ind = sh_ind if not autofill else \
+                            selected_auto['loc_' + str(i+1)]
+                        manu_loc = st.selectbox(
+                            'Select component manufacture location',
+                            cities_list, index=ml_ind,
+                            key='ml_%d'%i).lower().strip()
+                    else:  # Autofills with same location as previous comp
+                        prev_loc = all_info[10+((i-1)*14)]
+                        prev_ind = cities_list.index(prev_loc.title())
+                        manu_loc = st.selectbox(
+                            'Select component manufacture location',
+                            cities_list, index=prev_ind,
+                            key='ml_%d'%i).lower().strip()
+
+                    # Extracts city and country from format city (country)
+                    manu_ctry = manu_loc[manu_loc.find('(')+1:
+                        manu_loc.find(')')]
+                    manu_cty = manu_loc[:manu_loc.find('(')-1]
+
+                    # Autofills options depending on whether comp is UK-made
+                    if manu_ctry == 'united kingdom':
+                        uk_comp = True
+                        port_ind = None
+                        uk_end_ind = uk_locations.index(manu_cty.title())
+                    else:
+                        uk_comp = False
+                        port_ind = ports_list.index('Shanghai (China)')
+                        uk_end_ind = uk_locations.index('Felixstowe')
+                    all_info.append(manu_loc)
+
+                    #### DEBARKATION PORT ####
+                    # Port where comp leaves country of manufacture
+                    if not uk_comp:
+                        if i == 0 or change_info:
+                            dp_ind = port_ind if not autofill else \
+                                         selected_auto['port_' + str(i+1)]
+                            debark_port = st.selectbox(
+                                'Select debarkation port', ports_list,
+                                index=dp_ind, key='dp_%d'%i).lower().strip()
+                        else:  # Autofills with same location as previous comp
+                            prev_loc = all_info[11+((i-1)*14)]
+                            prev_ind = ports_list.index(prev_loc.title())
+                            debark_port = st.selectbox(
+                                'Select debarkation port', ports_list,
+                                index=prev_ind, key='dp_%d'%i).lower().strip()
+                    else:
+                        debark_port = '0'
+                    all_info.append(debark_port)
+
+                    # Distance between manufacture city and port
+                    land_dist_km = 0
+                    if manu_loc != debark_port and not uk_comp:
+                        try:  # Extracts distance travelled if in dataframe
+                            land_dist_km += land_travel_dist.at[(
+                                manu_loc, debark_port), 'distance_km']
+                        except KeyError:  # If not in df, user inputs value
+                            city1_nm = manu_loc.title()
+                            city2_nm = debark_port.title()
+                            land_dist_km += st.number_input(
+                                f'''Input travel distance between {city1_nm}
+                                 and {city2_nm}''', min_value=0.0, step=1.0,
+                                format='%0.3f', key='ld1_%d'%i)
+                            if land_dist_km > 0.0:
+                                land_travel_dist.loc[(manu_loc, debark_port),
+                                    ['distance_km']] = [land_dist_km]
+                                land_travel_dist = land_travel_dist.\
+                                    sort_index()
+
+                            if not cloud and land_dist_km > 0.0:
+                                update.update_travel_distances(
+                                    manu_loc, debark_port, land_dist_km)
+
+                    #### LOCATION IN UK ####
+                    # Where they travel from in UK (port if from overseas)
+                    if i == 0 or change_info:
+                        dl_ind = uk_end_ind if not autofill else \
+                                     selected_auto['loc_uk_' + str(i+1)]
+                        depart_loc_uk = st.selectbox(
+                            f'''Select UK location from which they travel to
+                            destination city''', uk_locations,
+                            index=uk_end_ind, key='dluk_%d'%i).lower().strip()
+                    else:  # Autofills with same location as previous comp
+                        prev_loc = all_info[12+((i-1)*14)]
+                        prev_ind = uk_locations.index(prev_loc.title())
+                        depart_loc_uk = st.selectbox(
+                            f'''Select UK location from which they travel to
+                            destination city''', uk_locations, index=prev_ind,
+                            key='dluk_%d'%i).lower().strip()
+                    all_info.append(depart_loc_uk)
+
+                    # Distance between ports if sea travel involved
+                    if debark_port != depart_loc_uk and not uk_comp:
+                        city2 = depart_loc_uk + ' (united kingdom)'
+                        # Calculates or extacts sea travel dist
+                        sea_dist_km = calc.calc_sea_distance(
+                            sea_travel_dist, debark_port, city2)
+                    else:
+                        sea_dist_km = 0
+
+                    # Distance between manu loc and place of depart for UK
+                    depart_uk_nm = depart_loc_uk + ' (united kingdom)'
+                    if manu_loc != depart_uk_nm and uk_comp:
+                        try:  # Extracts distance travelled if in dataframe
+                            land_dist_km += land_travel_dist.at[(
+                                manu_loc, depart_uk_nm), 'distance_km']
+                        except KeyError:  # If not in df, user inputs value
+                            city1_nm = manu_loc[:manu_loc.find('(')-1].title()
+                            city2_nm = depart_loc_uk.title()
+                            land_dist_km += st.number_input(
+                                f'''Input travel distance between {city1_nm}
+                                 and {city2_nm}''', min_value=0.0, step=1.0,
+                                format='%0.3f', key='ld2_%d'%i)
+                            if land_dist_km > 0.0:
+                                land_travel_dist.loc[(manu_loc, depart_uk_nm),
+                                    ['distance_km']] = [land_dist_km]
+                                land_travel_dist = land_travel_dist.\
+                                    sort_index()
+
+                            if not cloud and land_dist_km > 0.0:
+                                update.update_travel_distances(
+                                    manu_loc, city2, land_dist_km)
+                    all_info.append(land_dist_km)
+                    all_info.append(sea_dist_km)
+
+                    #### REPROCESSING ####
+                    # User inputs method of reprocessing
+                    re_ind = 0
+                    perc_val = 0.0
+                    if autofill:
+                        re_auto = str(selected_auto['repro_' + str(i+1)])
+                        if re_auto != '0':
+                            if 'hsdu' in re_auto:
+                                re_ind = 2
+                                # Extracts % fill from stored format
+                                perc_val = float(re_auto[re_auto.find('(')+1:
+                                    re_auto.find(')')])
+                            else:
+                                re_ind = 1 if re_auto == 'laundry' else 0
+
+                    repro = st.selectbox(
+                        'Select reprocessing type', [None, 'Laundry', 'HSDU'],
+                        index=re_ind, key='rep_%d'%i)
+
+                    if repro == 'HSDU':
+                        if not decon_info:
+                            # User inputs decontamination unit filling
+                            perc = st.number_input(
+                                f'''Enter product percentage filling of
+                                decontamination unit''', value=perc_val*100,
+                                min_value=0.0, max_value=100.0, step=0.001,
+                                format='%0.2f')
+                            # Saves info in required format
+                            repro = 'hsdu (' + str(perc/100) + ')'
+                            decon_info = True
+                        else:
+                            repro = 'hsdu (' + str(perc/100) + ')'
+                        if decon_type is None:
+                            decon_type = st.selectbox(
+                                f'Select decontamination unit',
+                                decon_names).lower()
+                    all_info.append(repro.lower() if repro is not None
+                                    else '0')
+
+                    #### DISPOSAL ####
+                    if not autofill:
+                        disposal_ind = 0
+                    else:  # Sets disposal type index from autofill
+                        d_type = selected_auto['disposal_' + str(i+1)]
+                        if d_type == 'recycle':
+                            disposal_ind = 0
+                        elif d_type == 'incinerate':
+                            disposal_ind = 1
+                        elif d_type == 'landfill':
+                            disposal_ind = 2
+                        else:
+                            disposal_ind = 3
+                    # User selects method of disposal
+                    disposal = st.selectbox(
+                        'Select disposal method',
+                        ['Recycle', 'Incineration', 'Landfill', None],
+                        index=disposal_ind, key='dis_%d'%i)
+
+                    if disposal == 'Recycle':
+                        all_info += [1, 0, 0]
+                    elif disposal == 'Incineration':
+                        all_info += [0, 1, 0]
+                    elif disposal == 'Landfill':
+                        all_info += [0, 0, 1]
+                    else:
+                        all_info += [0, 0, 0]
+
+                # Autofills some info if it is a process (e.g. weaving cotton)
+                else:
                     sh_ind = cities_list.index('Shanghai (China)')
                     ml_ind = sh_ind if not autofill else \
                         selected_auto['loc_' + str(i+1)]
-                    manu_loc = st.selectbox(
-                        'Select component manufacture location', cities_list,
+                    process_loc = st.selectbox(
+                        'Select location of process', cities_list,
                         index=ml_ind, key='ml_%d'%i).lower().strip()
-                else:  # Autofills with same location as previous component
-                    prev_loc = all_info[10+((i-1)*14)]
-                    prev_ind = cities_list.index(prev_loc.title())
-                    manu_loc = st.selectbox(
-                        'Select component manufacture location', cities_list,
-                        index=prev_ind, key='ml_%d'%i).lower().strip()
+                    manu_ctry = process_loc[process_loc.find('(')+1:
+                                            process_loc.find(')')]
+                    all_info += [0, process_loc, '0', '0', 0, 0, '0', 0, 0, 0]
 
-                # Extracts city and country from format city (country)
-                manu_ctry = manu_loc[manu_loc.find('(')+1:manu_loc.find(')')]
-                manu_cty = manu_loc[:manu_loc.find('(')-1]
+                #### ADDS OWN FACTOR TO DATAFRAME IF REQUIRED ####
+                if new_fact != 0.0:
+                    # Checks if same information exists in database
+                    condition = (factors['component'] == curr_comp) \
+                                & (factors['loc'] == manu_ctry) & \
+                                (factors['year'] == year_prod)
+                    # If it does, replace current value with user-specified
+                    factors.loc[condition, 'factor_kgCO2eq_unit'] = new_fact
 
-                # Autofills options depending on whether comp is UK-made
-                if manu_ctry == 'united kingdom':
-                    uk_comp = True
-                    port_ind = None
-                    uk_end_ind = uk_locations.index(manu_cty.title())
-                else:
-                    uk_comp = False
-                    port_ind = ports_list.index('Shanghai (China)')
-                    uk_end_ind = uk_locations.index('Felixstowe')
-                all_info.append(manu_loc)
+                    # Checks if component already in database
+                    found_comp = (factors['component'] == curr_comp)
 
-                #### DEBARKATION PORT ####
-                # Port where comp leaves country of manufacture
-                if not uk_comp:
-                    if i == 0 or change_info:
-                        dp_ind = port_ind if not autofill else \
-                                     selected_auto['port_' + str(i+1)]
-                        debark_port = st.selectbox(
-                            'Select debarkation port', ports_list,
-                            index=dp_ind, key='dp_%d'%i).lower().strip()
-                    else:  # Autofills with same location as previous comp
-                        prev_loc = all_info[11+((i-1)*14)]
-                        prev_ind = ports_list.index(prev_loc.title())
-                        debark_port = st.selectbox(
-                            'Select debarkation port', ports_list,
-                            index=prev_ind, key='dp_%d'%i).lower().strip()
-                else:
-                    debark_port = '0'
-                all_info.append(debark_port)
+                    # If not in database, user must specify carbon content
+                    if (~condition.any()) & (~found_comp.any()):
+                        new_cc = st.number_input(
+                            f'''Input carbon content (%) for
+                            **{curr_comp.title()}**''', value=0.0,
+                            min_value=0.0, step=0.001, format='%0.3f',
+                            key='cc_%d'%i)
+                        # Creates new row in factors dataframe with info
+                        new_row = {'component': curr_comp, 'loc': manu_ctry,
+                                   'year': year_prod,
+                                   'factor_kgCO2eq_unit': new_fact,
+                                   'carbon_content': new_cc}
+                        factors.loc[len(factors)] = new_row
 
-                # Distance between manufacture city and port
-                land_dist_km = 0
-                if manu_loc != debark_port and not uk_comp:
-                    try:  # Extracts distance travelled if in dataframe
-                        land_dist_km += land_travel_dist.at[(manu_loc,
-                                                             debark_port),
-                                                            'distance_km']
-                    except KeyError:  # If not in df, user inputs value
-                        city1_nm = manu_loc.title()
-                        city2_nm = debark_port.title()
-                        land_dist_km += st.number_input(
-                            f'''Input travel distance between {city1_nm} and
-                            {city2_nm}''', min_value=0.0, step=1.0,
-                            format='%0.3f', key='ld1_%d'%i)
+                    # If component in database, it extracts carbon content
+                    elif found_comp.any():
+                        curr_cc = factors.loc[found_comp,
+                                              'carbon_content'].iloc[0]
+                        # Creates new row in factors dataframe with info
+                        new_row = {'component': curr_comp, 'loc': manu_ctry,
+                                   'year': year_prod,
+                                   'factor_kgCO2eq_unit': new_fact,
+                                   'carbon_content': curr_cc}
+                        factors.loc[len(factors)] = new_row
 
-                        if not cloud and land_dist_km > 0.0:
-                            update.update_travel_distances(
-                                manu_loc, debark_port, land_dist_km)
+                # Sets multi-index and sorts
+                access_factors = factors.set_index(
+                    ['component', 'loc', 'year'])
+                access_factors = access_factors.sort_index()
 
-                #### LOCATION IN UK ####
-                # Where they travel from in UK (port if from overseas)
-                if i == 0 or change_info:
-                    dl_ind = uk_end_ind if not autofill else \
-                                 selected_auto['loc_uk_' + str(i+1)]
-                    depart_loc_uk = st.selectbox(
-                        f'''Select UK location from which they travel to
-                        destination city''', uk_locations, index=uk_end_ind,
-                        key='dluk_%d'%i).lower().strip()
-                else:  # Autofills with same location as previous component
-                    prev_loc = all_info[12+((i-1)*14)]
-                    prev_ind = uk_locations.index(prev_loc.title())
-                    depart_loc_uk = st.selectbox(
-                        f'''Select UK location from which they travel to
-                        destination city''', uk_locations, index=prev_ind,
-                        key='dluk_%d'%i).lower().strip()
-                all_info.append(depart_loc_uk)
+            #### EMISSIONS CALCULATIONS ####
+            # Adds all user-input information to pd.Series
+            product = pd.Series(all_info, index=index_names)
 
-                # Distance between ports if sea travel involved
-                if debark_port != depart_loc_uk and not uk_comp:
-                    city2 = depart_loc_uk + ' (united kingdom)'
-                    # Calculates or extacts sea travel dist
-                    sea_dist_km = calc.calc_sea_distance(
-                        sea_travel_dist, debark_port, city2)
-                else:
-                    sea_dist_km = 0
-
-                # Distance between manufacture loc and place of depart for UK
-                depart_uk_nm = depart_loc_uk + ' (united kingdom)'
-                if manu_loc != depart_uk_nm and uk_comp:
-                    try:  # Extracts distance travelled if in dataframe
-                        land_dist_km += land_travel_dist.at[(manu_loc,
-                                                             depart_uk_nm),
-                                                            'distance_km']
-                    except KeyError:  # If not in df, user inputs value
-                        city1_nm = manu_loc[:manu_loc.find('(')-1].title()
-                        city2_nm = depart_loc_uk.title()
-                        land_dist_km += st.number_input(
-                            f'''Input travel distance between {city1_nm} and
-                            {city2_nm}''', min_value=0.0, step=1.0,
-                            format='%0.3f', key='ld2_%d'%i)
-
-                        if not cloud and land_dist_km > 0.0:
-                            update.update_travel_distances(
-                                manu_loc, city2, land_dist_km)
-                all_info.append(land_dist_km)
-                all_info.append(sea_dist_km)
-
-                #### REPROCESSING ####
-                # User inputs method of reprocessing
-                re_ind = 0
-                perc_val = 0.0
-                if autofill:
-                    re_auto = str(selected_auto['repro_' + str(i+1)])
-                    if re_auto != '0':
-                        if 'hsdu' in re_auto:
-                            re_ind = 2
-                            # Extracts % fill from stored format
-                            perc_val = float(re_auto[re_auto.
-                                             find('(')+1:re_auto.find(')')])
-                        else:
-                            re_ind = 1 if re_auto == 'laundry' else 0
-
-                repro = st.selectbox(
-                    'Select reprocessing type', [None, 'Laundry', 'HSDU'],
-                    index=re_ind, key='rep_%d'%i)
-
-                if repro == 'HSDU':
-                    if not decon_info:
-                        # User inputs decontamination unit filling
-                        perc = st.number_input(
-                            f'''Enter product percentage filling of
-                            decontamination unit''', value=perc_val*100,
-                            min_value=0.0, max_value=100.0, step=0.001,
-                            format='%0.2f')
-                        # Saves info in required format
-                        repro = 'hsdu (' + str(perc/100) + ')'
-                        decon_info = True
-                    else:
-                        repro = 'hsdu (' + str(perc/100) + ')'
-                    if decon_type is None:
-                        decon_type = st.selectbox(
-                            f'Select decontamination unit',
-                            decon_names).lower()
-                all_info.append(repro.lower() if repro is not None else '0')
-
-                #### DISPOSAL ####
-                if not autofill:
-                    disposal_ind = 0
-                else:  # Sets disposal type index from autofill
-                    d_type = selected_auto['disposal_' + str(i+1)]
-                    if d_type == 'recycle':
-                        disposal_ind = 0
-                    elif d_type == 'incinerate':
-                        disposal_ind = 1
-                    elif d_type == 'landfill':
-                        disposal_ind = 2
-                    else:
-                        disposal_ind = 3
-                # User selects method of disposal
-                disposal = st.selectbox(
-                    'Select disposal method',
-                    ['Recycle', 'Incineration', 'Landfill', None],
-                    index=disposal_ind, key='dis_%d'%i)
-
-                if disposal == 'Recycle':
-                    all_info += [1, 0, 0]
-                elif disposal == 'Incineration':
-                    all_info += [0, 1, 0]
-                elif disposal == 'Landfill':
-                    all_info += [0, 0, 1]
-                else:
-                    all_info += [0, 0, 0]
-
-            # Autofills some info if it is a process (e.g. weaving cotton)
-            else:
-                sh_ind = cities_list.index('Shanghai (China)')
-                ml_ind = sh_ind if not autofill else \
-                    selected_auto['loc_' + str(i+1)]
-                process_loc = st.selectbox(
-                    'Select location of process', cities_list, index=ml_ind,
-                    key='ml_%d'%i).lower().strip()
-                manu_ctry = process_loc[process_loc.find('(')+1:
-                                        process_loc.find(')')]
-                all_info += [0, process_loc, '0', '0', 0, 0, '0', 0, 0, 0]
-
-            #### ADDS OWN FACTOR TO DATAFRAME IF REQUIRED ####
-            if new_fact != 0.0:
-                # Checks if same information exists in database
-                condition = (factors['component'] == curr_comp) \
-                            & (factors['loc'] == manu_ctry) & \
-                            (factors['year'] == year_prod)
-                # If it does, will replace current value with user-specified
-                factors.loc[condition, 'factor_kgCO2eq_unit'] = new_fact
-
-                # Checks if component already in database
-                found_comp = (factors['component'] == curr_comp)
-
-                # If not in database, user must specify carbon content
-                if (~condition.any()) & (~found_comp.any()):
-                    new_cc = st.number_input(
-                        f'''Input carbon content (%) for
-                        **{curr_comp.title()}**''', value=0.0,
-                        min_value=0.0, step=0.001, format='%0.3f',
-                        key='cc_%d'%i)
-                    # Creates new row in factors dataframe with info
-                    new_row = {'component': curr_comp, 'loc': manu_ctry,
-                               'year': year_prod,
-                               'factor_kgCO2eq_unit': new_fact,
-                               'carbon_content': new_cc}
-                    factors.loc[len(factors)] = new_row
-
-                # If component already in database, it extracts carbon content
-                elif found_comp.any():
-                    curr_cc = factors.loc[found_comp,
-                                          'carbon_content'].iloc[0]
-                    # Creates new row in factors dataframe with info
-                    new_row = {'component': curr_comp, 'loc': manu_ctry,
-                               'year': year_prod,
-                               'factor_kgCO2eq_unit': new_fact,
-                               'carbon_content': curr_cc}
-                    factors.loc[len(factors)] = new_row
-
-            # Sets multi-index and sorts
-            access_factors = factors.set_index(['component', 'loc', 'year'])
-            access_factors = access_factors.sort_index()
-
-        #### EMISSIONS CALCULATIONS ####
-        # Adds all user-input information to pd.Series
-        product = pd.Series(all_info, index=index_names)
+            st.form_submit_button('Apply Changes')
 
         # Uses user-input data to calculate emissions
         # Manufacturing emissions
@@ -1470,8 +1506,8 @@ if chosen is None or change_info:
                 total_emissions)
 
             st.markdown(f'''> *Please note: all emissions values in downloaded
-                            files are calculated using freely available emissions
-                            factors.*''')
+                        files are calculated using freely available
+                        emissions factors.*''')
 
             incl_travel = st.checkbox(
                 f'''Select if you wish to include travel to end location

@@ -241,8 +241,8 @@ st.set_page_config(layout='wide')  # Removes whitespace from edge of page
 
 st.title('Change Characterstics and Compare Emissions')  # Page title
 st.markdown(f'''Use this page to change product characteristics in the current
-                product database for multiple products and compare their GHG
-                emissions.''')
+                product database for multiple products and compare their
+                greenhouse gas emissions.''')
 
 cloud = is_cloud()  # Checks if running locally
 

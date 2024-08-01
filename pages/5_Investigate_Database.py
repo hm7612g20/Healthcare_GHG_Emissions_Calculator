@@ -230,8 +230,8 @@ def create_bar_chart(data, exclude=0, num_plot=15, w=1000, h=650, a=False,
 st.set_page_config(layout='wide')  # Removes whitespace from edge of page
 
 st.title('Comparison Emissions Plots')  # Page title
-st.markdown(f'''Create informative plots of GHG emissions for products
-                contained in the database.''')
+st.markdown(f'''Create informative plots of greenhouse gas emissions for
+            products contained in the database.''')
 
 cloud = is_cloud()  # Checks if running locally
 

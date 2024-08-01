@@ -225,6 +225,23 @@ def choose_database(chosen_products, product_emissions, no_comp,
     # Keeps copy of data in original form with additional travel
     original_df_inc_travel = selected.reset_index().copy(deep=True)
 
+    disposal = []  # Finds method of disposal
+    for i in range(no_comp):
+        comp_disp = []
+        for ind, row in selected.iterrows():
+            recycle = row['recycle_' + str(i+1)]
+            incin = row['incinerate_' + str(i+1)]
+            landfill = row['landfill_' + str(i+1)]
+            if recycle == 1:
+                comp_disp.append('Recycle')
+            elif incin == 1:
+                comp_disp.append('Incinerate')
+            elif landfill == 1:
+                comp_disp.append('Landfill')
+            else:
+                comp_disp.append('0')
+        disposal.append(comp_disp)
+
     selected.index.names = ['Product']
     # Used to filter and rename required columns
     filter_items = ['total_emissions', 'manufacture_emissions',
@@ -244,9 +261,10 @@ def choose_database(chosen_products, product_emissions, no_comp,
         filter_items.append(f'manu_loc_{i+1}')
         # Capitalises strings in these columns
         selected['component_' + str(i+1)] = selected['component_' + str(i+1)]\
-            .str.capitalize()
+            .str.title()
         selected['manu_loc_' + str(i+1)] = selected['manu_loc_' + str(i+1)]\
-            .str.capitalize()
+            .str.title()
+        selected['Disposal ' + str(i+1)] = disposal[i]
 
         # Used to rename columns
         col_names['component_' + str(i+1)] = 'Component ' + str(i+1)
@@ -262,15 +280,27 @@ def choose_database(chosen_products, product_emissions, no_comp,
     # Renames columns
     data.rename(columns=col_names, inplace=True)
 
+    # Adds trailing 0s to columns
+    if data['Use / kg CO2e'].iloc[0] == '0':
+        data['Use / kg CO2e'] = data['Use / kg CO2e']\
+        .astype(float).map('{:.1f}'.format)
+
     # Sorts so highest total appears first
     sorted_data = data.sort_values(by=['Total / kg CO2e'], ascending=False)
     # Fills NaN with 0
     sorted_data = sorted_data.fillna(0)
 
     # Capitalises product names
-    sorted_data.index = sorted_data.index.str.capitalize()
+    sorted_data.index = sorted_data.index.str.title()
     # Displays dataframe and rounds values
     st.dataframe(sorted_data.round(decimals=6).astype(str))
+
+    st.markdown(f'''See **References** for details on emissions factors
+                    used.''')
+    st.markdown(f'''*Please note: The transport emissions refer to land travel
+                by HGV from manufacture location to port, then sea travel by
+                container ship to UK port (if applicable), followed by land
+                travel by HGV to end location.*''')
 
     return sorted_data, original_df, original_df_inc_travel
 
@@ -556,8 +586,9 @@ def create_pdf_report(process_name, chosen_df, total_series,
 st.set_page_config(layout='wide')  # Removes whitespace from edge of page
 
 st.title('Calculate Total Emissions for Process')  # Page title
-st.markdown(f'''Select different products contained in the current database to
-                calculate the total emissions for a given process.''')
+st.markdown(f'''Select mulitple products contained in the current database or
+                your own file to calculate the total emissions for a given
+                healthcare process.''')
 
 cloud = is_cloud()  # Checks if running locally
 
@@ -619,7 +650,7 @@ process_name = st.text_input(f'Enter name of process')
 
 # User inputs destination city for final travel distance calc
 felixstowe_ind = uk_cities_list.index('Felixstowe')
-dest_city = st.selectbox(f'Select end destination where product is used',
+dest_city = st.selectbox(f'Select end destination where process takes place',
                          uk_cities_list, index=felixstowe_ind).lower()
 
 #### CHOOSE DATABASE ####

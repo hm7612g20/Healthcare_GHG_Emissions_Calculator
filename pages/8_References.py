@@ -46,6 +46,26 @@ def download_factors_info_file():
     return
 
 
+def download_defra_info_file():
+    '''Downloads file containing details on DEFRA factors used.'''
+    st.markdown(f'''Download file below to view information on DEFRA
+                    factors used.''')
+
+    # Reads in example file
+    ex_df = pd.read_excel('resources/defra_factors.xlsx')
+    ex = convert_df(ex_df)
+
+    # Outputs download button
+    st.download_button(
+        label='Download information file',
+        data=ex,
+        file_name='defra_factors.csv',
+        mime='text/csv'
+    )
+
+    return
+
+
 #### PAGE CONFIGURE ####
 st.set_page_config(
     layout='wide',
@@ -60,3 +80,4 @@ st.markdown(read_file_contents(file))
 
 st.divider()
 download_factors_info_file()
+download_defra_info_file()
