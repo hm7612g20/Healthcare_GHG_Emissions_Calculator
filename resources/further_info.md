@@ -1,6 +1,6 @@
-**GHG emissions calculated as sum of:**
-- GHG emissions from manufacture of product given its raw components.
-- Travel GHG emissions of raw materials from source to end location.
-- GHG emissions of product during use if it requires electricity, water or gas.
-- Reprocessing GHG emissions of product, if applicable.
-- GHG emissions from disposal of product, either by landfill, incineration or recycling.
+**Greenhouse gas emissions calculated using a cradle-to-grave approach:**
+- Manufacture of product from extraction of raw components.
+- Transport of raw materials from cradle to factory gate, then gate to location of use.
+- Use if product requires electricity, water or gas.
+- Reprocessing of product (laundry or hospital sterilisation and decontamination unit), if applicable.
+- Disposal, either by landfill, incineration or recycling.

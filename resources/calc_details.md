@@ -1,4 +1,5 @@
-Each product is made up of components, where each component specifies manufacture year, mass, no. uses (may change if packaging is included), manufacture location, port where it departs country of manufacture (if applicable), location in UK where it travels to end location
+Each product is made up of components at a material/substance level (e.g. total mass of low-density polyethylene contained in product).
+Each component has a specific manufacture year, mass, no. uses (may change if packaging is included), manufacture location, port where it departs country of manufacture (if applicable) and location in UK where it travels to end location.
 
 Emissions are calculated per use, where emissions value is divided by the number of times the product can be used.
 
