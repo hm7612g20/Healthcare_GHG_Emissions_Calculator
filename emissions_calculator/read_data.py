@@ -610,6 +610,11 @@ def check_uploaded_product_file(file):
     if not error:
         for ind, row in df.iterrows():
             for i in range(no_comp):
+                # Prevents empty component columns
+                if str(row['manu_year_' + str(i+1)]) == 'nan':
+                    no_comp = no_comp - 1
+                    df = df[df.columns[:((no_comp*12)+5)]]
+                    break
                 try:
                     int(row['manu_year_' + str(i+1)])
                 except ValueError:
@@ -637,15 +642,15 @@ def check_uploaded_product_file(file):
                     error = True
 
                 if row['manu_loc_' + str(i+1)] not in check_for:
-                    if '(' not in row['manu_loc_' + str(i+1)] or ')' not in \
-                        row['manu_loc_' + str(i+1)]:
+                    if '(' not in str(row['manu_loc_' + str(i+1)]) or ')' \
+                        not in str(row['manu_loc_' + str(i+1)]):
                         st.error(f'''Error: Incorrect format for
                                      manu_loc_{i+1} on line {ind+1}.''')
                         error = True
 
                 if row['debark_port_' + str(i+1)] not in check_for:
-                    if '(' not in row['debark_port_' + str(i+1)] or ')' not \
-                        in row['debark_port_' + str(i+1)]:
+                    if '(' not in str(row['debark_port_' + str(i+1)]) or ')' \
+                        not in str(row['debark_port_' + str(i+1)]):
                         st.error(f'''Error: Incorrect format for
                                      debark_port_{i+1} on line {ind+1}.''')
                         error = True
@@ -793,15 +798,15 @@ def check_uploaded_emissions_file(file):
                     error = True
 
                 if row['manu_loc_' + str(i+1)] not in check_for:
-                    if '(' not in row['manu_loc_' + str(i+1)] or ')' not in \
-                        row['manu_loc_' + str(i+1)]:
+                    if '(' not in str(row['manu_loc_' + str(i+1)]) or ')' \
+                        not in str(row['manu_loc_' + str(i+1)]):
                         st.error(f'''Error: Incorrect format for
                                      manu_loc_{i+1} on line {ind+1}.''')
                         error = True
 
                 if row['debark_port_' + str(i+1)] not in check_for:
-                    if '(' not in row['debark_port_' + str(i+1)] or ')' not \
-                        in row['debark_port_' + str(i+1)]:
+                    if '(' not in str(row['debark_port_' + str(i+1)]) or ')' \
+                        not in str(row['debark_port_' + str(i+1)]):
                         st.error(f'''Error: Incorrect format for
                                      debark_port_{i+1} on line {ind+1}.''')
                         error = True

@@ -902,6 +902,12 @@ if chosen is None or change_info:
     no_comp = st.number_input(
         f'Enter number of components used to make product',
         min_value=1, value=no_comp_val, step=1)
+    st.markdown(f'''> *Please note: Component refers to materials and relevant
+                production processes used to make the product, not constituent
+                parts. Component emissions factors refer to cradle to factory
+                gate in raw material form, so separate factors should be added
+                for production of finished product (e.g. injection
+                moulding)*''')
 
     if no_comp is not None:
         no_comp = int(no_comp)
@@ -1031,11 +1037,6 @@ if chosen is None or change_info:
                 curr_comp = st.selectbox(f'Select component {i+1}',
                                          available_factor, index=comp_ind,
                                          key='comp_%d'%i).lower()
-                st.markdown(f'''> *Please note: Component emissions factors
-                            refer to cradle to factory gate in raw material
-                            form, so in some cases, separate factors should
-                            be added for production of finished product
-                            (e.g. injection moulding)*''')
                 curr_process = False
                 own_comp = False
 
