@@ -612,7 +612,7 @@ def check_uploaded_product_file(file):
             for i in range(no_comp):
                 # Prevents empty component columns
                 if str(row['manu_year_' + str(i+1)]) == 'nan':
-                    no_comp = no_comp - 1
+                    no_comp = i
                     df = df[df.columns[:((no_comp*12)+5)]]
                     break
                 try:
