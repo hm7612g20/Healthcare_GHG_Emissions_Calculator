@@ -569,9 +569,9 @@ if st.button('Click to Calculate Emissions'):
 if (st.session_state.calculation is not None and
     st.session_state.multiselect is not None):
     results = st.session_state.calculation
-    results_inc_additional = st.session_state.additional_calculation
+    results_inc_trvl = st.session_state.additional_calculation
     to_plot = st.session_state.multiselect
-    inc_additional = st.session_state.additional_csv
+    inc_trvl = st.session_state.additional_csv
 
     st.divider()
     st.markdown('#### Results')
@@ -597,16 +597,16 @@ if (st.session_state.calculation is not None and
                        mime='image/png', key=0)
 
     # Download files as csv
-    if inc_additional:
-        download_button(results_inc_additional, products)
+    if inc_trvl:
+        download_button(results_inc_trvl, products)
     else:
         download_button(results, products)
 
 # Prints dataframe of results if no plot items asked for
 elif st.session_state.calculation is not None:
     results = st.session_state.calculation
-    results_inc_additional = st.session_state.additional_calculation
-    inc_additional = st.session_state.additional_csv
+    results_inc_trvl = st.session_state.additional_calculation
+    inc_trvl = st.session_state.additional_csv
 
     st.divider()
     st.markdown('#### Results')
@@ -616,7 +616,7 @@ elif st.session_state.calculation is not None:
     st.dataframe(formatted_results)
 
     # Download files as csv
-    if inc_additional:
-        download_button(results_inc_additional, products)
+    if inc_trvl:
+        download_button(results_inc_trvl, products)
     else:
         download_button(results, products)
